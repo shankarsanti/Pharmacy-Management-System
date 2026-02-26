@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { mockMedicines } from '../../data/mockData';
+import { mockMedicines, getStockDisplay } from '../../data/mockData';
 import Modal from '../common/Modal';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -17,30 +17,93 @@ const POS = () => {
     const [customerPhone, setCustomerPhone] = useState('');
     const [customerVillage, setCustomerVillage] = useState('');
     const [doctorName, setDoctorName] = useState('');
+    // Sale type modal state
+    const [showSaleTypeModal, setShowSaleTypeModal] = useState(false);
+    const [selectedMed, setSelectedMed] = useState(null);
+    const [saleType, setSaleType] = useState('strip'); // 'strip' or 'loose'
+    const [saleQty, setSaleQty] = useState(1);
+
     const toast = useToast();
     const { user } = useAuth();
     const { settings, generateInvoiceId } = useSettings();
-    const canBill = true; // All roles (Admin, Pharmacist) can create bills
+    const canBill = true;
 
     const filteredMedicines = searchTerm.trim()
         ? mockMedicines.filter((m) => m.name.toLowerCase().includes(searchTerm.toLowerCase()) && m.stock > 0)
         : mockMedicines.filter((m) => m.stock > 0);
 
-    const addToCart = (med) => {
-        const existing = cart.find((i) => i.id === med.id);
-        if (existing) {
-            if (existing.qty >= med.stock) { toast.warning(`Max stock reached for ${med.name}`); return; }
-            setCart(cart.map((i) => i.id === med.id ? { ...i, qty: i.qty + 1 } : i));
+    // Open sale type chooser for a medicine
+    const openSaleTypeModal = (med) => {
+        setSelectedMed(med);
+        const isTablet = med.medicineType === 'Tablet' && med.tabletsPerStrip > 1;
+        // Default to strip sale if tablet type, otherwise unit sale
+        if (isTablet) {
+            setSaleType('strip');
         } else {
-            setCart([...cart, { ...med, qty: 1, price: med.sellingPrice }]);
+            setSaleType('unit');
         }
+        setSaleQty(1);
+        setShowSaleTypeModal(true);
     };
 
-    const updateQty = (id, newQty) => {
-        if (newQty < 1) { setCart(cart.filter((i) => i.id !== id)); return; }
-        const med = mockMedicines.find((m) => m.id === id);
-        if (med && newQty > med.stock) { toast.warning(`Only ${med.stock} units available`); return; }
-        setCart(cart.map((i) => i.id === id ? { ...i, qty: newQty } : i));
+    // Calculate tablets to deduct based on sale type
+    const getTabletsToDeduct = () => {
+        if (!selectedMed) return 0;
+        if (saleType === 'strip') {
+            return saleQty * (selectedMed.tabletsPerStrip || 1);
+        }
+        return saleQty; // loose or unit
+    };
+
+    // Calculate price for sale
+    const getSalePrice = () => {
+        if (!selectedMed) return 0;
+        if (saleType === 'strip') {
+            return selectedMed.stripPrice || selectedMed.sellingPrice;
+        }
+        if (saleType === 'loose') {
+            return selectedMed.looseTabletPrice || 0;
+        }
+        return selectedMed.sellingPrice; // unit (syrup, inhaler, etc.)
+    };
+
+    // Confirm adding item to cart
+    const confirmAddToCart = () => {
+        if (!selectedMed) return;
+        const tabletsToDeduct = getTabletsToDeduct();
+        const price = getSalePrice();
+
+        // Check if already in cart and accumulate total tablets
+        const existingCartTablets = cart
+            .filter((i) => i.medId === selectedMed.id)
+            .reduce((sum, i) => sum + i.tabletsDeducted, 0);
+
+        if (existingCartTablets + tabletsToDeduct > selectedMed.stock) {
+            toast.error(`Insufficient stock available! Only ${selectedMed.stock - existingCartTablets} tablets remaining.`);
+            return;
+        }
+
+        if (saleQty < 1) {
+            toast.warning('Quantity must be at least 1');
+            return;
+        }
+
+        // Add to cart with sale type info
+        const cartItem = {
+            id: `${selectedMed.id}-${saleType}-${Date.now()}`,
+            medId: selectedMed.id,
+            name: selectedMed.name,
+            qty: saleQty,
+            price: price,
+            saleType: saleType,
+            tabletsDeducted: tabletsToDeduct,
+            tabletsPerStrip: selectedMed.tabletsPerStrip || 1,
+            stock: selectedMed.stock,
+        };
+
+        setCart([...cart, cartItem]);
+        setShowSaleTypeModal(false);
+        toast.success(`Added ${saleQty} ${saleType === 'strip' ? 'strip(s)' : saleType === 'loose' ? 'tablet(s)' : 'unit(s)'} of ${selectedMed.name}`);
     };
 
     const removeFromCart = (id) => setCart(cart.filter((i) => i.id !== id));
@@ -66,7 +129,10 @@ const POS = () => {
             id: generateInvoiceId(),
             date: new Date().toLocaleDateString('en-IN'),
             time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-            items: [...cart],
+            items: cart.map((item) => ({
+                ...item,
+                saleTypeLabel: item.saleType === 'strip' ? `${item.qty} strip(s) × ${item.tabletsPerStrip}` : item.saleType === 'loose' ? `${item.qty} tablet(s)` : `${item.qty} unit(s)`,
+            })),
             subtotal, tax, cgstAmt, sgstAmt, discountPercent, discountAmount, roundOff, total: grandTotal,
             payment: paymentMethod,
             customerName: customerName.trim(),
@@ -74,7 +140,6 @@ const POS = () => {
             customerVillage: customerVillage.trim(),
             doctorName: doctorName.trim(),
             billedBy: user?.name || 'Staff',
-            // snapshot settings at billing time
             pharmacyName: settings.pharmacyName,
             pharmacyAddress: settings.pharmacyAddress,
             pharmacyPhone: settings.pharmacyPhone,
@@ -99,11 +164,19 @@ const POS = () => {
         toast.success('Sale completed successfully!');
     };
 
+    // Get total tablets in cart for a given medicine
+    const getCartTabletsForMed = (medId) => {
+        return cart.filter((i) => i.medId === medId).reduce((sum, i) => sum + i.tabletsDeducted, 0);
+    };
+
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">Point of Sale</h1>
-                <p className="text-sm text-gray-500 mt-1">Search, add to cart, and process billing.</p>
+                <p className="text-sm text-gray-500 mt-1">
+                    Search, add to cart, and process billing.
+                    <span className="text-blue-500 font-medium ml-1">Supports strip & loose tablet sales.</span>
+                </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
@@ -117,21 +190,57 @@ const POS = () => {
                     </div>
                     <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
                         {filteredMedicines.map((med) => {
-                            const inCart = cart.find((i) => i.id === med.id);
+                            const cartTablets = getCartTabletsForMed(med.id);
+                            const remainingStock = med.stock - cartTablets;
+                            const isTablet = med.medicineType === 'Tablet' && med.tabletsPerStrip > 1;
+                            const stockInfo = isTablet ? getStockDisplay(med.stock, med.tabletsPerStrip) : null;
+                            const canSellStrip = isTablet && remainingStock >= med.tabletsPerStrip;
+
                             return (
                                 <div key={med.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-blue-50/30 transition-colors">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">{med.name}</p>
-                                        <div className="flex items-center gap-3 mt-0.5">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-semibold text-gray-900">{med.name}</p>
+                                            {med.allowLooseSale && isTablet && (
+                                                <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-violet-100 text-violet-600">
+                                                    LOOSE
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                                             <span className="text-xs text-gray-400 font-mono">{med.id}</span>
-                                            <span className="text-xs text-emerald-600 font-medium">Stock: {med.stock}</span>
+                                            <span className="text-xs text-emerald-600 font-medium">
+                                                {isTablet ? `${med.stock} tablets` : `${med.stock} units`}
+                                            </span>
+                                            {isTablet && (
+                                                <span className="text-[10px] text-gray-400">
+                                                    ({stockInfo?.strips}s + {stockInfo?.loose}t • {med.tabletsPerStrip}/strip)
+                                                </span>
+                                            )}
                                             <span className="text-xs text-gray-400">{med.category}</span>
+                                            {cartTablets > 0 && (
+                                                <span className="text-[10px] text-amber-600 font-bold">
+                                                    In cart: {cartTablets} tablets
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <span className="text-sm font-bold text-gray-800">₹{med.sellingPrice}</span>
-                                        <button onClick={() => addToCart(med)} disabled={!canBill} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 ${!canBill ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : inCart ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'}`}>
-                                            {!canBill ? 'View Only' : inCart ? `Added (${inCart.qty})` : '+ Add'}
+                                        <div className="text-right">
+                                            <span className="text-sm font-bold text-gray-800">₹{med.stripPrice || med.sellingPrice}</span>
+                                            {isTablet && <p className="text-[10px] text-gray-400">/strip</p>}
+                                        </div>
+                                        <button
+                                            onClick={() => openSaleTypeModal(med)}
+                                            disabled={!canBill || remainingStock <= 0}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 ${remainingStock <= 0
+                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                    : cartTablets > 0
+                                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                                                }`}
+                                        >
+                                            {remainingStock <= 0 ? 'No Stock' : cartTablets > 0 ? '+ More' : '+ Add'}
                                         </button>
                                     </div>
                                 </div>
@@ -164,19 +273,25 @@ const POS = () => {
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-                                                <p className="text-xs text-gray-400">₹{item.price} each</p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${item.saleType === 'strip' ? 'bg-blue-100 text-blue-700' :
+                                                            item.saleType === 'loose' ? 'bg-violet-100 text-violet-700' :
+                                                                'bg-gray-100 text-gray-600'
+                                                        }`}>
+                                                        {item.saleType === 'strip' ? `STRIP (${item.tabletsPerStrip}/strip)` :
+                                                            item.saleType === 'loose' ? 'LOOSE TABLET' : 'UNIT'}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400">
+                                                        {item.tabletsDeducted} tablets deducted
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-gray-400 mt-0.5">
+                                                    {item.qty} × ₹{item.price} = ₹{(item.price * item.qty).toFixed(2)}
+                                                </p>
                                             </div>
                                             <button onClick={() => removeFromCart(item.id)} className="p-1 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
-                                        </div>
-                                        <div className="flex items-center justify-between mt-2">
-                                            <div className="flex items-center gap-1">
-                                                <button onClick={() => updateQty(item.id, item.qty - 1)} className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm font-bold">−</button>
-                                                <input type="number" min="1" value={item.qty} onChange={(e) => updateQty(item.id, parseInt(e.target.value) || 1)} className="w-12 h-7 text-center text-sm font-semibold border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400" />
-                                                <button onClick={() => updateQty(item.id, item.qty + 1)} className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm font-bold">+</button>
-                                            </div>
-                                            <p className="text-sm font-bold text-gray-900">₹{(item.price * item.qty).toFixed(2)}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -210,6 +325,189 @@ const POS = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Sale Type Modal */}
+            <Modal isOpen={showSaleTypeModal} onClose={() => setShowSaleTypeModal(false)} title="Select Sale Type" size="md">
+                {selectedMed && (() => {
+                    const isTablet = selectedMed.medicineType === 'Tablet' && selectedMed.tabletsPerStrip > 1;
+                    const cartTablets = getCartTabletsForMed(selectedMed.id);
+                    const availableStock = selectedMed.stock - cartTablets;
+                    const stockInfo = isTablet ? getStockDisplay(availableStock, selectedMed.tabletsPerStrip) : null;
+                    const tabletsToDeduct = getTabletsToDeduct();
+                    const salePrice = getSalePrice();
+                    const totalPrice = salePrice * saleQty;
+                    const canSellStrip = isTablet && availableStock >= selectedMed.tabletsPerStrip;
+                    const hasError = tabletsToDeduct > availableStock;
+                    const remainingAfterSale = availableStock - tabletsToDeduct;
+                    const warnLowStock = isTablet && remainingAfterSale >= 0 && remainingAfterSale < selectedMed.tabletsPerStrip;
+
+                    return (
+                        <div className="space-y-5">
+                            {/* Medicine Info Header */}
+                            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-white text-xl shadow-md">💊</div>
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-bold text-gray-900">{selectedMed.name}</h3>
+                                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                                        <span className="text-sm text-emerald-600 font-semibold">
+                                            Available: {availableStock} tablets
+                                        </span>
+                                        {isTablet && (
+                                            <span className="text-xs text-gray-400">
+                                                ({stockInfo?.strips} strips + {stockInfo?.loose} loose • {selectedMed.tabletsPerStrip} tablets/strip)
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sale Type Radio Buttons */}
+                            {isTablet ? (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-3">Sale Type</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {/* Strip Sale Option */}
+                                        <button
+                                            onClick={() => { setSaleType('strip'); setSaleQty(1); }}
+                                            disabled={!canSellStrip}
+                                            className={`relative p-4 rounded-xl border-2 text-left transition-all ${saleType === 'strip'
+                                                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                                                    : canSellStrip
+                                                        ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                                                        : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            {saleType === 'strip' && (
+                                                <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                                </div>
+                                            )}
+                                            <p className="text-2xl mb-1">📦</p>
+                                            <p className="text-sm font-bold text-gray-900">Strip Sale</p>
+                                            <p className="text-xs text-gray-400 mt-0.5">{selectedMed.tabletsPerStrip} tablets/strip</p>
+                                            <p className="text-lg font-bold text-blue-600 mt-2">₹{selectedMed.stripPrice || selectedMed.sellingPrice}/strip</p>
+                                            {!canSellStrip && <p className="text-[10px] text-red-500 mt-1 font-medium">Not enough stock for strip sale</p>}
+                                        </button>
+
+                                        {/* Loose Tablet Option */}
+                                        <button
+                                            onClick={() => { setSaleType('loose'); setSaleQty(1); }}
+                                            disabled={!selectedMed.allowLooseSale}
+                                            className={`relative p-4 rounded-xl border-2 text-left transition-all ${saleType === 'loose'
+                                                    ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-200'
+                                                    : selectedMed.allowLooseSale
+                                                        ? 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/50'
+                                                        : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            {saleType === 'loose' && (
+                                                <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                                </div>
+                                            )}
+                                            <p className="text-2xl mb-1">💊</p>
+                                            <p className="text-sm font-bold text-gray-900">Loose Tablet</p>
+                                            <p className="text-xs text-gray-400 mt-0.5">Individual tablets</p>
+                                            <p className="text-lg font-bold text-violet-600 mt-2">
+                                                {selectedMed.allowLooseSale ? `₹${selectedMed.looseTabletPrice}/tablet` : 'Not allowed'}
+                                            </p>
+                                            {!selectedMed.allowLooseSale && <p className="text-[10px] text-red-500 mt-1 font-medium">Loose sale not enabled</p>}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {/* Quantity Input */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                    {saleType === 'strip' ? 'Strips to Sell' : saleType === 'loose' ? 'Tablets to Sell' : 'Quantity'}
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setSaleQty(Math.max(1, saleQty - 1))}
+                                        className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-700"
+                                    >−</button>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={saleQty}
+                                        onChange={(e) => setSaleQty(Math.max(1, parseInt(e.target.value) || 1))}
+                                        className="w-20 h-10 text-center text-lg font-bold border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                                    />
+                                    <button
+                                        onClick={() => setSaleQty(saleQty + 1)}
+                                        className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-700"
+                                    >+</button>
+                                </div>
+                            </div>
+
+                            {/* Auto Calculation Display */}
+                            <div className={`p-4 rounded-xl border ${hasError ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                                <div className="grid grid-cols-3 gap-3 text-center">
+                                    <div>
+                                        <p className="text-xs text-gray-500 font-medium">Tablets Deducted</p>
+                                        <p className={`text-xl font-bold ${hasError ? 'text-red-600' : 'text-blue-700'}`}>{tabletsToDeduct}</p>
+                                        {saleType === 'strip' && (
+                                            <p className="text-[10px] text-gray-400">{saleQty} × {selectedMed.tabletsPerStrip} = {tabletsToDeduct}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 font-medium">Unit Price</p>
+                                        <p className="text-xl font-bold text-gray-800">₹{salePrice}</p>
+                                        <p className="text-[10px] text-gray-400">per {saleType === 'strip' ? 'strip' : saleType === 'loose' ? 'tablet' : 'unit'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 font-medium">Total Price</p>
+                                        <p className="text-xl font-bold text-emerald-700">₹{totalPrice.toFixed(2)}</p>
+                                        <p className="text-[10px] text-gray-400">{saleQty} × ₹{salePrice}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Error / Warning Messages */}
+                            {hasError && (
+                                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
+                                    <span className="text-red-500 text-lg">⚠️</span>
+                                    <div>
+                                        <p className="text-sm font-bold text-red-700">Insufficient stock available</p>
+                                        <p className="text-xs text-red-500">
+                                            Need {tabletsToDeduct} tablets but only {availableStock} available
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {warnLowStock && !hasError && (
+                                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                                    <span className="text-amber-500 text-lg">💡</span>
+                                    <div>
+                                        <p className="text-sm font-medium text-amber-700">
+                                            After this sale, remaining stock ({remainingAfterSale} tablets) will be less than 1 strip
+                                        </p>
+                                        {isTablet && saleType === 'loose' && canSellStrip && (
+                                            <p className="text-xs text-amber-500 mt-0.5">
+                                                Consider suggesting a strip sale instead for better value
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Confirm Button */}
+                            <button
+                                onClick={confirmAddToCart}
+                                disabled={hasError || saleQty < 1}
+                                className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${hasError || saleQty < 1
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25'
+                                    }`}
+                            >
+                                Add to Cart — ₹{totalPrice.toFixed(2)}
+                            </button>
+                        </div>
+                    );
+                })()}
+            </Modal>
 
             {/* Payment Modal */}
             <Modal isOpen={showPayment} onClose={() => setShowPayment(false)} title="Checkout" size="md">
@@ -297,10 +595,23 @@ const POS = () => {
                             <div><span className="text-gray-400 text-xs">Billed By</span><p className="font-semibold text-gray-900">{lastInvoice.billedBy}</p></div>
                         </div>
                         <table className="w-full text-sm mb-4">
-                            <thead><tr className="border-b border-gray-200 text-gray-500"><th className="text-left py-2">Item</th><th className="text-center py-2">Qty</th><th className="text-right py-2">Price</th><th className="text-right py-2">Total</th></tr></thead>
+                            <thead><tr className="border-b border-gray-200 text-gray-500"><th className="text-left py-2">Item</th><th className="text-center py-2">Type</th><th className="text-center py-2">Qty</th><th className="text-right py-2">Price</th><th className="text-right py-2">Total</th></tr></thead>
                             <tbody className="divide-y divide-gray-50">
-                                {lastInvoice.items.map((item) => (
-                                    <tr key={item.id}><td className="py-2 font-medium text-gray-900">{item.name}</td><td className="py-2 text-center text-gray-600">{item.qty}</td><td className="py-2 text-right text-gray-600">{lastInvoice.currency}{item.price}</td><td className="py-2 text-right font-semibold">{lastInvoice.currency}{(item.price * item.qty).toFixed(2)}</td></tr>
+                                {lastInvoice.items.map((item, idx) => (
+                                    <tr key={idx}>
+                                        <td className="py-2 font-medium text-gray-900">{item.name}</td>
+                                        <td className="py-2 text-center">
+                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${item.saleType === 'strip' ? 'bg-blue-100 text-blue-700' :
+                                                    item.saleType === 'loose' ? 'bg-violet-100 text-violet-700' :
+                                                        'bg-gray-100 text-gray-600'
+                                                }`}>
+                                                {item.saleType === 'strip' ? 'STRIP' : item.saleType === 'loose' ? 'LOOSE' : 'UNIT'}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 text-center text-gray-600">{item.qty}</td>
+                                        <td className="py-2 text-right text-gray-600">{lastInvoice.currency}{item.price}</td>
+                                        <td className="py-2 text-right font-semibold">{lastInvoice.currency}{(item.price * item.qty).toFixed(2)}</td>
+                                    </tr>
                                 ))}
                             </tbody>
                         </table>
@@ -318,7 +629,6 @@ const POS = () => {
                             <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200"><span>Grand Total</span><span>{lastInvoice.currency}{lastInvoice.total.toFixed(2)}</span></div>
                             <div className="flex justify-between text-gray-400 text-xs mt-2"><span>Payment</span><span>{lastInvoice.payment}</span></div>
                         </div>
-                        {/* Footer Message */}
                         {lastInvoice.footerMessage && (
                             <div className="mt-4 pt-4 border-t border-dashed border-gray-300 text-center">
                                 <p className="text-xs text-gray-400 italic">{lastInvoice.footerMessage}</p>

@@ -144,7 +144,7 @@ const Dashboard = () => {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                         <h2 className="text-lg font-bold text-gray-900">⚠️ Alerts</h2>
-                        <Link to="/notifications" className="text-sm text-blue-600 hover:underline font-medium">View All →</Link>
+                        {canEdit && <Link to="/notifications" className="text-sm text-blue-600 hover:underline font-medium">View All →</Link>}
                     </div>
                     <div className="divide-y divide-gray-50">
                         {alertMedicines.slice(0, 5).map((med, i) => (

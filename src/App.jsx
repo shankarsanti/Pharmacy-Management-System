@@ -18,11 +18,11 @@ import Suppliers from './components/suppliers/Suppliers';
 import POS from './components/pos/POS';
 import Sales from './components/sales/Sales';
 import ExpiryManagement from './components/expiry/ExpiryManagement';
-import Notifications from './components/notifications/Notifications';
+
 import Reports from './components/reports/Reports';
 import Profile from './components/profile/Profile';
-import Settings from './components/settings/Settings';
-import AuditLogs from './components/audit/AuditLogs';
+import Notifications from './components/notifications/Notifications';
+
 import StockEntry from './components/stocks/StockEntry';
 import RemainingStocks from './components/stocks/RemainingStocks';
 import { NotFoundPage } from './components/errors/ErrorPages';
@@ -55,13 +55,13 @@ function App() {
           <Route path="pos" element={<POS />} />
           <Route path="sales" element={<Sales />} />
           <Route path="expiry" element={<ExpiryManagement />} />
-          <Route path="notifications" element={<RoleGuard roles="Admin"><Notifications /></RoleGuard>} />
+
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<RoleGuard roles="Admin"><Settings /></RoleGuard>} />
-          <Route path="audit" element={<AuditLogs />} />
+
           <Route path="stock-entry" element={<StockEntry />} />
           <Route path="remaining-stocks" element={<RemainingStocks />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
 
         {/* 404 */}
