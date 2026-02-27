@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { mockMedicines, mockSales, getLowStockMedicines, getOutOfStockMedicines, getExpiringSoonMedicines, getTodaysSales, getTodaysRevenue, getDaysUntilExpiry } from '../../data/mockData';
+import { mockMedicines, mockSales, getLowStockMedicines, getOutOfStockMedicines, getExpiringSoonMedicines, getTodaysSales, getTodaysRevenue, getDaysUntilExpiry, getTodaysProfit, getThisMonthProfit, getThisMonthRevenue, getProfitMargin, getTodaysCost, getThisMonthCost } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 
 const Dashboard = () => {
@@ -12,6 +12,15 @@ const Dashboard = () => {
     const totalMedicines = mockMedicines.reduce((s, m) => s + m.stock, 0);
     const { user } = useAuth();
     const canEdit = user?.role !== 'Pharmacist';
+
+    // Profit calculations
+    const todaysProfit = getTodaysProfit();
+    const todaysCost = getTodaysCost();
+    const monthProfit = getThisMonthProfit();
+    const monthRevenue = getThisMonthRevenue();
+    const monthCost = getThisMonthCost();
+    const monthMargin = getProfitMargin(monthProfit, monthRevenue);
+    const todayMargin = getProfitMargin(todaysProfit, todaysRevenue);
 
     const stats = [
         { title: 'Total Medicines', value: totalMedicines.toLocaleString('en-IN'), change: `${mockMedicines.length} products`, color: 'from-blue-500 to-blue-600', iconBg: 'bg-blue-100 text-blue-600', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg> },
@@ -71,6 +80,180 @@ const Dashboard = () => {
                         <div className={`h-1 w-10 rounded-full bg-gradient-to-r ${stat.color} mt-3`}></div>
                     </div>
                 ))}
+            </div>
+
+            {/* 📊 Profit Overview Section */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-xl p-6 border border-slate-700/50">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2.5 bg-emerald-500/20 rounded-xl">
+                        <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-white">Profit Overview</h2>
+                        <p className="text-xs text-slate-400">Revenue vs Cost analysis</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Left — Today's Breakdown */}
+                    <div className="bg-slate-800/60 rounded-xl border border-slate-700/40 p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Today</h3>
+                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${Number(todayMargin) >= 30 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}`}>
+                                {todayMargin}% Margin
+                            </span>
+                        </div>
+                        <div className="space-y-4">
+                            {/* Revenue row */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-blue-400"></span>
+                                        <span className="text-xs font-medium text-slate-400">Revenue</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-white">₹{todaysRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-1000" style={{ width: '100%' }}></div>
+                                </div>
+                            </div>
+                            {/* Cost row */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-rose-400"></span>
+                                        <span className="text-xs font-medium text-slate-400">Cost (COGS)</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-white">₹{todaysCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-full transition-all duration-1000" style={{ width: `${todaysRevenue > 0 ? (todaysCost / todaysRevenue * 100) : 0}%` }}></div>
+                                </div>
+                            </div>
+                            {/* Profit row */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-400"></span>
+                                        <span className="text-xs font-medium text-slate-400">Profit</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-emerald-400">₹{todaysProfit.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000" style={{ width: `${todaysRevenue > 0 ? (todaysProfit / todaysRevenue * 100) : 0}%` }}></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-700/30 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z" /></svg>
+                            <span className="text-[11px] text-slate-500">{todaysSales.length} invoice(s) today</span>
+                        </div>
+                    </div>
+
+                    {/* Right — This Month Breakdown */}
+                    <div className="bg-slate-800/60 rounded-xl border border-slate-700/40 p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">This Month (Feb)</h3>
+                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${Number(monthMargin) >= 30 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}`}>
+                                {monthMargin}% Margin
+                            </span>
+                        </div>
+                        <div className="space-y-4">
+                            {/* Revenue row */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-blue-400"></span>
+                                        <span className="text-xs font-medium text-slate-400">Revenue</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-white">₹{monthRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-1000" style={{ width: '100%' }}></div>
+                                </div>
+                            </div>
+                            {/* Cost row */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-rose-400"></span>
+                                        <span className="text-xs font-medium text-slate-400">Cost (COGS)</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-white">₹{monthCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-full transition-all duration-1000" style={{ width: `${monthRevenue > 0 ? (monthCost / monthRevenue * 100) : 0}%` }}></div>
+                                </div>
+                            </div>
+                            {/* Profit row */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-400"></span>
+                                        <span className="text-xs font-medium text-slate-400">Profit</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-emerald-400">₹{monthProfit.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000" style={{ width: `${monthRevenue > 0 ? (monthProfit / monthRevenue * 100) : 0}%` }}></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-700/30 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <span className="text-[11px] text-slate-500">{mockSales.filter(s => s.date.startsWith('2026-02')).length} invoice(s) this month</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Profit Margin Gauge — bottom row */}
+                <div className="mt-5 bg-slate-800/60 rounded-xl border border-slate-700/40 p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                                <span className="text-xs font-semibold text-cyan-300 uppercase tracking-wider">Overall Profit Margin</span>
+                            </div>
+                            <p className="text-3xl font-bold text-white">{monthMargin}%</p>
+                        </div>
+                        <div className="flex-1 max-w-md">
+                            <div className="w-full h-3 bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-1000 ${Number(monthMargin) >= 40 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+                                            Number(monthMargin) >= 25 ? 'bg-gradient-to-r from-cyan-500 to-cyan-400' :
+                                                'bg-gradient-to-r from-amber-500 to-amber-400'
+                                        }`}
+                                    style={{ width: `${Math.min(Number(monthMargin), 100)}%` }}
+                                ></div>
+                            </div>
+                            <div className="flex justify-between mt-1">
+                                <span className="text-[10px] text-slate-500">0%</span>
+                                <span className="text-[10px] text-slate-500">25%</span>
+                                <span className="text-[10px] text-slate-500">50%</span>
+                                <span className="text-[10px] text-slate-500">75%</span>
+                                <span className="text-[10px] text-slate-500">100%</span>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="flex items-center gap-4 text-xs">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-sm bg-blue-400"></span>
+                                    <span className="text-slate-400">Revenue</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-sm bg-rose-400"></span>
+                                    <span className="text-slate-400">Cost</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-sm bg-emerald-400"></span>
+                                    <span className="text-slate-400">Profit</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

@@ -208,6 +208,54 @@ export const getTodaysSales = () =>
 export const getTodaysRevenue = () =>
     getTodaysSales().reduce((sum, s) => sum + s.total, 0);
 
+// ---------- PROFIT HELPERS ----------
+// Calculate cost of goods sold for a single sale item
+const getItemCost = (item) => {
+    const med = mockMedicines.find((m) => m.id === item.medId);
+    if (!med) return 0;
+    // purchasePrice is per strip; derive per-tablet cost
+    const costPerTablet = med.purchasePrice / (med.tabletsPerStrip || 1);
+    return costPerTablet * (item.tabletsDeducted || 0);
+};
+
+// Calculate profit for a single sale (revenue - cost)
+const getSaleProfit = (sale) => {
+    const cost = sale.items.reduce((sum, item) => sum + getItemCost(item), 0);
+    return sale.total - cost;
+};
+
+// Get this month's sales (Feb 2026)
+export const getThisMonthSales = () =>
+    mockSales.filter((s) => s.date.startsWith('2026-02'));
+
+// Today's profit
+export const getTodaysProfit = () =>
+    getTodaysSales().reduce((sum, s) => sum + getSaleProfit(s), 0);
+
+// This month's profit
+export const getThisMonthProfit = () =>
+    getThisMonthSales().reduce((sum, s) => sum + getSaleProfit(s), 0);
+
+// This month's revenue
+export const getThisMonthRevenue = () =>
+    getThisMonthSales().reduce((sum, s) => sum + s.total, 0);
+
+// Cost of goods sold
+const getSaleCost = (sale) =>
+    sale.items.reduce((sum, item) => sum + getItemCost(item), 0);
+
+// Today's COGS
+export const getTodaysCost = () =>
+    getTodaysSales().reduce((sum, s) => sum + getSaleCost(s), 0);
+
+// This month's COGS
+export const getThisMonthCost = () =>
+    getThisMonthSales().reduce((sum, s) => sum + getSaleCost(s), 0);
+
+// Profit margin % = (profit / revenue) * 100
+export const getProfitMargin = (profit, revenue) =>
+    revenue > 0 ? ((profit / revenue) * 100).toFixed(1) : '0.0';
+
 // Helper: Convert tablet stock to strips + loose tablets display
 export const getStockDisplay = (totalTablets, tabletsPerStrip) => {
     if (!tabletsPerStrip || tabletsPerStrip <= 1) return { strips: totalTablets, loose: 0, display: `${totalTablets} units` };
