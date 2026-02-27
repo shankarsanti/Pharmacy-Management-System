@@ -25,6 +25,7 @@ import Notifications from './components/notifications/Notifications';
 
 import StockEntry from './components/stocks/StockEntry';
 import RemainingStocks from './components/stocks/RemainingStocks';
+import Settings from './components/settings/Settings';
 import { NotFoundPage } from './components/errors/ErrorPages';
 
 function App() {
@@ -62,6 +63,7 @@ function App() {
           <Route path="stock-entry" element={<StockEntry />} />
           <Route path="remaining-stocks" element={<RemainingStocks />} />
           <Route path="notifications" element={<Notifications />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         {/* 404 */}

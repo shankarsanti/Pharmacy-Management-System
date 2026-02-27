@@ -7,8 +7,13 @@ const Settings = () => {
     const toast = useToast();
     const { user } = useAuth();
     const canEdit = user?.role !== 'Pharmacist';
-    const { settings: savedSettings, updateSettings } = useSettings();
+    const { settings: savedSettings, updateSettings, doctors, addDoctor, updateDoctor, deleteDoctor } = useSettings();
     const [settings, setSettings] = useState({ ...savedSettings });
+    // Doctor management state
+    const [showAddDoctor, setShowAddDoctor] = useState(false);
+    const [editingDoctor, setEditingDoctor] = useState(null);
+    const [doctorForm, setDoctorForm] = useState({ name: '', phone: '', specialization: '' });
+    const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
 
     const handleSave = () => {
         updateSettings(settings);
@@ -69,7 +74,7 @@ const Settings = () => {
                             <label className="block text-sm font-medium text-gray-500 mb-1">Theme</label>
                             <div className="flex gap-3">
                                 {['light', 'dark'].map((t) => (
-                                    <button key={t} onClick={() => setSettings({ ...settings, theme: t })} className={`flex-1 py-3 rounded-xl border-2 font-medium text-sm capitalize transition-all ${settings.theme === t ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>{t === 'light' ? '☀️' : '🌙'} {t}</button>
+                                    <button key={t} onClick={() => { setSettings({ ...settings, theme: t }); updateSettings({ theme: t }); }} className={`flex-1 py-3 rounded-xl border-2 font-medium text-sm capitalize transition-all ${settings.theme === t ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-400' : 'border-gray-200 dark:border-slate-600 text-gray-500 dark:text-slate-400 hover:border-gray-300'}`}>{t === 'light' ? '☀️' : '🌙'} {t}</button>
                                 ))}
                             </div>
                         </div>
@@ -250,6 +255,22 @@ const Settings = () => {
                             </div>
                         </div>
 
+                        {/* UPI ID for QR Code */}
+                        {settings.enablePaymentModes.upi && (
+                            <div className="p-4 rounded-xl border border-violet-200 bg-violet-50/30">
+                                <p className="text-sm font-semibold text-gray-800 mb-1">📱 UPI Payment ID</p>
+                                <p className="text-xs text-gray-400 mb-2">Used to generate QR codes for UPI payments in POS</p>
+                                <input
+                                    type="text"
+                                    value={settings.upiId || ''}
+                                    onChange={(e) => setSettings({ ...settings, upiId: e.target.value })}
+                                    disabled={!canEdit}
+                                    placeholder="yourname@upi"
+                                    className={`w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${!canEdit ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                                />
+                            </div>
+                        )}
+
                         {/* Live Billing Preview */}
                         <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-white">
                             <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-3">Billing Preview</p>
@@ -387,6 +408,161 @@ const Settings = () => {
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Manage Doctors — full width */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-bold text-gray-900">🩺 Manage Doctors</h3>
+                    <span className="bg-teal-100 text-teal-700 px-2.5 py-0.5 rounded-full text-xs font-bold">{doctors.length} doctors</span>
+                </div>
+                <p className="text-xs text-gray-400 mb-5">Add and manage doctors that appear in the POS "Prescribed By" dropdown.</p>
+
+                {/* Search + Add button */}
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="relative flex-1">
+                        <input
+                            type="text"
+                            value={doctorSearchTerm}
+                            onChange={(e) => setDoctorSearchTerm(e.target.value)}
+                            placeholder="Search doctors..."
+                            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                        />
+                        <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                    {canEdit && (
+                        <button
+                            onClick={() => { setShowAddDoctor(true); setEditingDoctor(null); setDoctorForm({ name: '', phone: '', specialization: '' }); }}
+                            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white text-sm font-semibold shadow-sm transition-all active:scale-95"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                            Add Doctor
+                        </button>
+                    )}
+                </div>
+
+                {/* Add/Edit Doctor Form */}
+                {(showAddDoctor || editingDoctor) && canEdit && (
+                    <div className="mb-4 p-4 border border-teal-200 bg-teal-50/30 rounded-xl space-y-3">
+                        <p className="text-sm font-bold text-gray-900">{editingDoctor ? 'Edit Doctor' : 'Add New Doctor'}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Doctor Name *</label>
+                                <input
+                                    type="text"
+                                    value={doctorForm.name}
+                                    onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })}
+                                    placeholder="e.g., Dr. Ravi Kumar"
+                                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Specialization</label>
+                                <input
+                                    type="text"
+                                    value={doctorForm.specialization}
+                                    onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
+                                    placeholder="e.g., General Physician"
+                                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Phone</label>
+                                <input
+                                    type="tel"
+                                    value={doctorForm.phone}
+                                    onChange={(e) => setDoctorForm({ ...doctorForm, phone: e.target.value })}
+                                    placeholder="e.g., +91 98765 12345"
+                                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                            <button
+                                onClick={() => {
+                                    if (!doctorForm.name.trim()) { toast.warning('Doctor name is required'); return; }
+                                    if (editingDoctor) {
+                                        updateDoctor(editingDoctor.id, { name: doctorForm.name.trim(), phone: doctorForm.phone.trim(), specialization: doctorForm.specialization.trim() || 'General' });
+                                        toast.success('Doctor updated successfully!');
+                                    } else {
+                                        addDoctor({ name: doctorForm.name.trim(), phone: doctorForm.phone.trim(), specialization: doctorForm.specialization.trim() || 'General' });
+                                        toast.success('Doctor added successfully!');
+                                    }
+                                    setShowAddDoctor(false);
+                                    setEditingDoctor(null);
+                                    setDoctorForm({ name: '', phone: '', specialization: '' });
+                                }}
+                                disabled={!doctorForm.name.trim()}
+                                className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${doctorForm.name.trim() ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                            >
+                                {editingDoctor ? 'Update Doctor' : 'Add Doctor'}
+                            </button>
+                            <button
+                                onClick={() => { setShowAddDoctor(false); setEditingDoctor(null); setDoctorForm({ name: '', phone: '', specialization: '' }); }}
+                                className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Doctors Table */}
+                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="bg-gray-50/80 text-gray-500">
+                                <th className="text-left py-3 px-4 font-semibold">Doctor</th>
+                                <th className="text-left py-3 px-4 font-semibold">Specialization</th>
+                                <th className="text-left py-3 px-4 font-semibold">Phone</th>
+                                {canEdit && <th className="text-right py-3 px-4 font-semibold">Actions</th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {doctors
+                                .filter(d => d.name.toLowerCase().includes(doctorSearchTerm.toLowerCase()) || d.specialization.toLowerCase().includes(doctorSearchTerm.toLowerCase()))
+                                .map((doc) => (
+                                    <tr key={doc.id} className="hover:bg-teal-50/30 transition-colors">
+                                        <td className="py-3 px-4">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
+                                                    {doc.name.split(' ').filter(n => n !== 'Dr.').map(n => n[0]).join('').slice(0, 2)}
+                                                </div>
+                                                <span className="font-semibold text-gray-900">{doc.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700">{doc.specialization || 'General'}</span>
+                                        </td>
+                                        <td className="py-3 px-4 text-gray-500">{doc.phone || '—'}</td>
+                                        {canEdit && (
+                                            <td className="py-3 px-4">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        onClick={() => { setEditingDoctor(doc); setShowAddDoctor(false); setDoctorForm({ name: doc.name, phone: doc.phone || '', specialization: doc.specialization || '' }); }}
+                                                        className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors"
+                                                        title="Edit"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { deleteDoctor(doc.id); toast.success(`${doc.name} removed`); }}
+                                                        className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            {doctors.filter(d => d.name.toLowerCase().includes(doctorSearchTerm.toLowerCase()) || d.specialization.toLowerCase().includes(doctorSearchTerm.toLowerCase())).length === 0 && (
+                                <tr><td colSpan="4" className="py-8 text-center text-gray-400 text-sm">No doctors found</td></tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 

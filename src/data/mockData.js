@@ -7,7 +7,6 @@
 export const mockUsers = [
     { id: 'U001', name: 'Admin User', email: 'admin@pharmacare.com', password: 'admin123', role: 'Admin', phone: '+91 98765 43210', avatar: 'AU' },
     { id: 'U002', name: 'Rahul Sharma', email: 'rahul@pharmacare.com', password: 'pharma123', role: 'Pharmacist', phone: '+91 98765 43211', avatar: 'RS' },
-    { id: 'U003', name: 'Priya Patel', email: 'priya@pharmacare.com', password: 'cashier123', role: 'Cashier', phone: '+91 98765 43212', avatar: 'PP' },
 ];
 
 // ---------- CATEGORIES ----------
@@ -57,15 +56,15 @@ export const mockMedicines = [
 // ---------- SALES ----------
 export const mockSales = [
     { id: 'INV-001', date: '2026-02-25', time: '09:15 AM', customer: 'Walk-in', items: [{ medId: 'M001', name: 'Amoxicillin 500mg', qty: 2, price: 150, saleType: 'strip', tabletsDeducted: 20 }, { medId: 'M002', name: 'Panadol Advance', qty: 3, price: 85, saleType: 'strip', tabletsDeducted: 45 }], subtotal: 555, tax: 27.75, discount: 0, total: 582.75, payment: 'Cash', billBy: 'Rahul Sharma' },
-    { id: 'INV-002', date: '2026-02-25', time: '10:30 AM', customer: 'Anita Verma', items: [{ medId: 'M007', name: 'Metformin 500mg', qty: 5, price: 120, saleType: 'strip', tabletsDeducted: 75 }, { medId: 'M008', name: 'Nexium 40mg', qty: 1, price: 480, saleType: 'strip', tabletsDeducted: 10 }], subtotal: 1080, tax: 54, discount: 50, total: 1084, payment: 'UPI', billBy: 'Priya Patel' },
+    { id: 'INV-002', date: '2026-02-25', time: '10:30 AM', customer: 'Anita Verma', items: [{ medId: 'M007', name: 'Metformin 500mg', qty: 5, price: 120, saleType: 'strip', tabletsDeducted: 75 }, { medId: 'M008', name: 'Nexium 40mg', qty: 1, price: 480, saleType: 'strip', tabletsDeducted: 10 }], subtotal: 1080, tax: 54, discount: 50, total: 1084, payment: 'UPI', billBy: 'Rahul Sharma' },
     { id: 'INV-003', date: '2026-02-25', time: '11:45 AM', customer: 'Suresh Menon', items: [{ medId: 'M003', name: 'Zyrtec 10mg', qty: 1, price: 245, saleType: 'strip', tabletsDeducted: 10 }], subtotal: 245, tax: 12.25, discount: 0, total: 257.25, payment: 'Card', billBy: 'Rahul Sharma' },
-    { id: 'INV-004', date: '2026-02-25', time: '02:00 PM', customer: 'Walk-in', items: [{ medId: 'M009', name: 'Vitamin C 1000mg', qty: 10, price: 95, saleType: 'strip', tabletsDeducted: 150 }, { medId: 'M010', name: 'Cough Syrup 100ml', qty: 2, price: 135, saleType: 'unit', tabletsDeducted: 2 }], subtotal: 1220, tax: 61, discount: 100, total: 1181, payment: 'Cash', billBy: 'Priya Patel' },
+    { id: 'INV-004', date: '2026-02-25', time: '02:00 PM', customer: 'Walk-in', items: [{ medId: 'M009', name: 'Vitamin C 1000mg', qty: 10, price: 95, saleType: 'strip', tabletsDeducted: 150 }, { medId: 'M010', name: 'Cough Syrup 100ml', qty: 2, price: 135, saleType: 'unit', tabletsDeducted: 2 }], subtotal: 1220, tax: 61, discount: 100, total: 1181, payment: 'Cash', billBy: 'Rahul Sharma' },
     { id: 'INV-005', date: '2026-02-24', time: '09:30 AM', customer: 'Deepa Rao', items: [{ medId: 'M004', name: 'Lipitor 20mg', qty: 1, price: 520, saleType: 'strip', tabletsDeducted: 10 }], subtotal: 520, tax: 26, discount: 0, total: 546, payment: 'UPI', billBy: 'Rahul Sharma' },
-    { id: 'INV-006', date: '2026-02-24', time: '12:15 PM', customer: 'Walk-in', items: [{ medId: 'M006', name: 'Ventolin Inhaler', qty: 1, price: 275, saleType: 'unit', tabletsDeducted: 1 }, { medId: 'M002', name: 'Panadol Advance', qty: 5, price: 6, saleType: 'loose', tabletsDeducted: 5 }], subtotal: 305, tax: 15.25, discount: 20, total: 300.25, payment: 'Cash', billBy: 'Priya Patel' },
+    { id: 'INV-006', date: '2026-02-24', time: '12:15 PM', customer: 'Walk-in', items: [{ medId: 'M006', name: 'Ventolin Inhaler', qty: 1, price: 275, saleType: 'unit', tabletsDeducted: 1 }, { medId: 'M002', name: 'Panadol Advance', qty: 5, price: 6, saleType: 'loose', tabletsDeducted: 5 }], subtotal: 305, tax: 15.25, discount: 20, total: 300.25, payment: 'Cash', billBy: 'Rahul Sharma' },
     { id: 'INV-007', date: '2026-02-23', time: '10:00 AM', customer: 'Vikram Singh', items: [{ medId: 'M005', name: 'Augmentin 625mg', qty: 2, price: 310, saleType: 'strip', tabletsDeducted: 20 }], subtotal: 620, tax: 31, discount: 0, total: 651, payment: 'Card', billBy: 'Rahul Sharma' },
-    { id: 'INV-008', date: '2026-02-23', time: '03:45 PM', customer: 'Walk-in', items: [{ medId: 'M001', name: 'Amoxicillin 500mg', qty: 3, price: 150, saleType: 'strip', tabletsDeducted: 30 }, { medId: 'M009', name: 'Vitamin C 1000mg', qty: 5, price: 95, saleType: 'strip', tabletsDeducted: 75 }], subtotal: 925, tax: 46.25, discount: 50, total: 921.25, payment: 'UPI', billBy: 'Priya Patel' },
+    { id: 'INV-008', date: '2026-02-23', time: '03:45 PM', customer: 'Walk-in', items: [{ medId: 'M001', name: 'Amoxicillin 500mg', qty: 3, price: 150, saleType: 'strip', tabletsDeducted: 30 }, { medId: 'M009', name: 'Vitamin C 1000mg', qty: 5, price: 95, saleType: 'strip', tabletsDeducted: 75 }], subtotal: 925, tax: 46.25, discount: 50, total: 921.25, payment: 'UPI', billBy: 'Rahul Sharma' },
     { id: 'INV-009', date: '2026-02-22', time: '11:00 AM', customer: 'Kavitha Iyer', items: [{ medId: 'M007', name: 'Metformin 500mg', qty: 8, price: 9, saleType: 'loose', tabletsDeducted: 8 }], subtotal: 72, tax: 3.6, discount: 0, total: 75.6, payment: 'Cash', billBy: 'Rahul Sharma' },
-    { id: 'INV-010', date: '2026-02-22', time: '04:30 PM', customer: 'Walk-in', items: [{ medId: 'M003', name: 'Zyrtec 10mg', qty: 2, price: 245, saleType: 'strip', tabletsDeducted: 20 }, { medId: 'M010', name: 'Cough Syrup 100ml', qty: 1, price: 135, saleType: 'unit', tabletsDeducted: 1 }], subtotal: 625, tax: 31.25, discount: 0, total: 656.25, payment: 'UPI', billBy: 'Priya Patel' },
+    { id: 'INV-010', date: '2026-02-22', time: '04:30 PM', customer: 'Walk-in', items: [{ medId: 'M003', name: 'Zyrtec 10mg', qty: 2, price: 245, saleType: 'strip', tabletsDeducted: 20 }, { medId: 'M010', name: 'Cough Syrup 100ml', qty: 1, price: 135, saleType: 'unit', tabletsDeducted: 1 }], subtotal: 625, tax: 31.25, discount: 0, total: 656.25, payment: 'UPI', billBy: 'Rahul Sharma' },
 ];
 
 // ---------- STOCK ENTRIES ----------
@@ -150,7 +149,7 @@ export const mockAuditLogs = [
     { id: 'L001', action: 'Medicine Added', description: 'Added Amoxicillin 500mg to inventory', user: 'Admin User', role: 'Admin', timestamp: '2026-02-25 09:00:00', type: 'inventory' },
     { id: 'L002', action: 'Stock Updated', description: 'Updated stock of Panadol Advance: 300 → 350', user: 'Rahul Sharma', role: 'Pharmacist', timestamp: '2026-02-25 09:15:00', type: 'inventory' },
     { id: 'L003', action: 'Sale Completed', description: 'Invoice INV-001 generated — ₹582.75', user: 'Rahul Sharma', role: 'Pharmacist', timestamp: '2026-02-25 09:15:00', type: 'sales' },
-    { id: 'L004', action: 'Sale Completed', description: 'Invoice INV-002 generated — ₹1,084.00', user: 'Priya Patel', role: 'Cashier', timestamp: '2026-02-25 10:30:00', type: 'sales' },
+    { id: 'L004', action: 'Sale Completed', description: 'Invoice INV-002 generated — ₹1,084.00', user: 'Rahul Sharma', role: 'Pharmacist', timestamp: '2026-02-25 10:30:00', type: 'sales' },
     { id: 'L005', action: 'Medicine Deleted', description: 'Removed expired batch BT-2023-099', user: 'Admin User', role: 'Admin', timestamp: '2026-02-24 14:00:00', type: 'inventory' },
     { id: 'L006', action: 'User Login', description: 'Admin User logged in', user: 'Admin User', role: 'Admin', timestamp: '2026-02-25 08:55:00', type: 'auth' },
     { id: 'L007', action: 'Supplier Added', description: 'Added new supplier: BioVita Wholesale', user: 'Admin User', role: 'Admin', timestamp: '2026-02-24 11:00:00', type: 'supplier' },
@@ -169,6 +168,15 @@ export const mockNotifications = [
     { id: 'N006', type: 'expiry', title: 'Expiring Soon', message: 'Augmentin 625mg expires in 18 days', time: '3 hours ago', read: true, severity: 'info' },
     { id: 'N007', type: 'low_stock', title: 'Low Stock Alert', message: 'Ciprofloxacin 500mg has only 8 tablets left', time: '5 hours ago', read: true, severity: 'warning' },
     { id: 'N008', type: 'expiry', title: 'Expiring Soon', message: 'Lipitor 20mg expires in 35 days', time: '1 day ago', read: true, severity: 'info' },
+];
+
+// ---------- DOCTORS ----------
+export const mockDoctors = [
+    { id: 'D001', name: 'Dr. Sunita Mehta', phone: '+91 98765 11111', specialization: 'General Physician' },
+    { id: 'D002', name: 'Dr. Rajesh Gupta', phone: '+91 98765 22222', specialization: 'Cardiologist' },
+    { id: 'D003', name: 'Dr. Priya Sharma', phone: '+91 98765 33333', specialization: 'Pediatrician' },
+    { id: 'D004', name: 'Dr. Amit Patel', phone: '+91 98765 44444', specialization: 'Dermatologist' },
+    { id: 'D005', name: 'Dr. Kavita Reddy', phone: '+91 98765 55555', specialization: 'ENT Specialist' },
 ];
 
 // ---------- HELPER FUNCTIONS ----------

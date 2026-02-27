@@ -4,6 +4,8 @@ import Modal from '../common/Modal';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
+import { QRCodeSVG } from 'qrcode.react';
+
 
 const POS = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -17,6 +19,12 @@ const POS = () => {
     const [customerPhone, setCustomerPhone] = useState('');
     const [customerVillage, setCustomerVillage] = useState('');
     const [doctorName, setDoctorName] = useState('');
+    const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+    const [doctorSearch, setDoctorSearch] = useState('');
+    const [showAddDoctorInline, setShowAddDoctorInline] = useState(false);
+    const [newDoctorName, setNewDoctorName] = useState('');
+    const [newDoctorPhone, setNewDoctorPhone] = useState('');
+    const [newDoctorSpec, setNewDoctorSpec] = useState('');
     // Sale type modal state
     const [showSaleTypeModal, setShowSaleTypeModal] = useState(false);
     const [selectedMed, setSelectedMed] = useState(null);
@@ -25,7 +33,7 @@ const POS = () => {
 
     const toast = useToast();
     const { user } = useAuth();
-    const { settings, generateInvoiceId } = useSettings();
+    const { settings, generateInvoiceId, doctors, addDoctor } = useSettings();
     const canBill = true;
 
     const filteredMedicines = searchTerm.trim()
@@ -234,10 +242,10 @@ const POS = () => {
                                             onClick={() => openSaleTypeModal(med)}
                                             disabled={!canBill || remainingStock <= 0}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 ${remainingStock <= 0
-                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                    : cartTablets > 0
-                                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                                                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                : cartTablets > 0
+                                                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                                                 }`}
                                         >
                                             {remainingStock <= 0 ? 'No Stock' : cartTablets > 0 ? '+ More' : '+ Add'}
@@ -275,8 +283,8 @@ const POS = () => {
                                                 <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${item.saleType === 'strip' ? 'bg-blue-100 text-blue-700' :
-                                                            item.saleType === 'loose' ? 'bg-violet-100 text-violet-700' :
-                                                                'bg-gray-100 text-gray-600'
+                                                        item.saleType === 'loose' ? 'bg-violet-100 text-violet-700' :
+                                                            'bg-gray-100 text-gray-600'
                                                         }`}>
                                                         {item.saleType === 'strip' ? `STRIP (${item.tabletsPerStrip}/strip)` :
                                                             item.saleType === 'loose' ? 'LOOSE TABLET' : 'UNIT'}
@@ -371,10 +379,10 @@ const POS = () => {
                                             onClick={() => { setSaleType('strip'); setSaleQty(1); }}
                                             disabled={!canSellStrip}
                                             className={`relative p-4 rounded-xl border-2 text-left transition-all ${saleType === 'strip'
-                                                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                                                    : canSellStrip
-                                                        ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
-                                                        : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                                                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                                                : canSellStrip
+                                                    ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                                                    : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
                                                 }`}
                                         >
                                             {saleType === 'strip' && (
@@ -394,10 +402,10 @@ const POS = () => {
                                             onClick={() => { setSaleType('loose'); setSaleQty(1); }}
                                             disabled={!selectedMed.allowLooseSale}
                                             className={`relative p-4 rounded-xl border-2 text-left transition-all ${saleType === 'loose'
-                                                    ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-200'
-                                                    : selectedMed.allowLooseSale
-                                                        ? 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/50'
-                                                        : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                                                ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-200'
+                                                : selectedMed.allowLooseSale
+                                                    ? 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/50'
+                                                    : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
                                                 }`}
                                         >
                                             {saleType === 'loose' && (
@@ -498,8 +506,8 @@ const POS = () => {
                                 onClick={confirmAddToCart}
                                 disabled={hasError || saleQty < 1}
                                 className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${hasError || saleQty < 1
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25'
+                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25'
                                     }`}
                             >
                                 Add to Cart — ₹{totalPrice.toFixed(2)}
@@ -530,9 +538,97 @@ const POS = () => {
                             <label className="block text-xs font-medium text-gray-500 mb-1">Village / Town</label>
                             <input type="text" value={customerVillage} onChange={(e) => setCustomerVillage(e.target.value)} placeholder="e.g., Andheri, Mumbai" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all" />
                         </div>
-                        <div>
+                        <div className="relative">
                             <label className="block text-xs font-medium text-gray-500 mb-1">Doctor / Prescribed By</label>
-                            <input type="text" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} placeholder="e.g., Dr. Sunita Mehta" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all" />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={showDoctorDropdown ? doctorSearch : doctorName}
+                                    onChange={(e) => { setDoctorSearch(e.target.value); if (!showDoctorDropdown) setShowDoctorDropdown(true); }}
+                                    onFocus={() => { setShowDoctorDropdown(true); setDoctorSearch(''); }}
+                                    placeholder="Search or select doctor..."
+                                    className="w-full px-3 py-2.5 pr-8 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                                />
+                                {doctorName && (
+                                    <button onClick={() => { setDoctorName(''); setDoctorSearch(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                )}
+                                {!doctorName && (
+                                    <svg className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                )}
+                            </div>
+                            {showDoctorDropdown && (
+                                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                                    {/* Doctor List */}
+                                    {doctors.filter(d => d.name.toLowerCase().includes(doctorSearch.toLowerCase())).length > 0 ? (
+                                        doctors.filter(d => d.name.toLowerCase().includes(doctorSearch.toLowerCase())).map((doc) => (
+                                            <button
+                                                key={doc.id}
+                                                onClick={() => { setDoctorName(doc.name); setDoctorSearch(''); setShowDoctorDropdown(false); }}
+                                                className={`w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors flex items-center gap-2.5 border-b border-gray-50 last:border-0 ${doctorName === doc.name ? 'bg-blue-50' : ''}`}
+                                            >
+                                                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                                                    {doc.name.split(' ').filter(n => n !== 'Dr.').map(n => n[0]).join('').slice(0, 2)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-900 truncate">{doc.name}</p>
+                                                    <p className="text-[10px] text-gray-400">{doc.specialization}{doc.phone ? ` • ${doc.phone}` : ''}</p>
+                                                </div>
+                                                {doctorName === doc.name && (
+                                                    <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                                )}
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-3 text-center text-xs text-gray-400">No doctors found</div>
+                                    )}
+                                    {/* Add New Doctor */}
+                                    {!showAddDoctorInline ? (
+                                        <button
+                                            onClick={() => setShowAddDoctorInline(true)}
+                                            className="w-full text-left px-3 py-2.5 hover:bg-emerald-50 transition-colors flex items-center gap-2.5 border-t border-gray-100 text-emerald-600"
+                                        >
+                                            <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 text-sm font-bold flex-shrink-0">+</div>
+                                            <span className="text-sm font-semibold">Add New Doctor</span>
+                                        </button>
+                                    ) : (
+                                        <div className="p-3 border-t border-gray-100 bg-gray-50/50 space-y-2">
+                                            <p className="text-xs font-bold text-gray-700">Add New Doctor</p>
+                                            <input type="text" value={newDoctorName} onChange={(e) => setNewDoctorName(e.target.value)} placeholder="Doctor name (e.g., Dr. Ravi Kumar)" className="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-400" />
+                                            <input type="text" value={newDoctorSpec} onChange={(e) => setNewDoctorSpec(e.target.value)} placeholder="Specialization (e.g., General Physician)" className="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-400" />
+                                            <input type="tel" value={newDoctorPhone} onChange={(e) => setNewDoctorPhone(e.target.value)} placeholder="Phone (optional)" className="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-400" />
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        if (!newDoctorName.trim()) return;
+                                                        const doc = addDoctor({ name: newDoctorName.trim(), phone: newDoctorPhone.trim(), specialization: newDoctorSpec.trim() || 'General' });
+                                                        setDoctorName(doc.name);
+                                                        setNewDoctorName(''); setNewDoctorPhone(''); setNewDoctorSpec('');
+                                                        setShowAddDoctorInline(false);
+                                                        setShowDoctorDropdown(false);
+                                                        toast.success(`Dr. ${doc.name} added successfully!`);
+                                                    }}
+                                                    disabled={!newDoctorName.trim()}
+                                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${newDoctorName.trim() ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                                >
+                                                    Add & Select
+                                                </button>
+                                                <button
+                                                    onClick={() => { setShowAddDoctorInline(false); setNewDoctorName(''); setNewDoctorPhone(''); setNewDoctorSpec(''); }}
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-100"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {/* Backdrop to close dropdown */}
+                            {showDoctorDropdown && (
+                                <div className="fixed inset-0 z-40" onClick={() => { setShowDoctorDropdown(false); setShowAddDoctorInline(false); setDoctorSearch(''); }} />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -543,14 +639,45 @@ const POS = () => {
                         <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                         Payment Method
                     </h3>
-                    <div className="grid grid-cols-3 gap-2">
-                        {['Cash', 'UPI', 'Card'].map((method) => (
+                    <div className="grid grid-cols-2 gap-2">
+                        {['Cash', 'UPI'].map((method) => (
                             <button key={method} onClick={() => setPaymentMethod(method)} className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 transition-all ${paymentMethod === method ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}>
-                                <span className="text-xl">{method === 'Cash' ? '💵' : method === 'UPI' ? '📱' : '💳'}</span>
+                                <span className="text-xl">{method === 'Cash' ? '💵' : '📱'}</span>
                                 <span className={`text-xs font-semibold ${paymentMethod === method ? 'text-blue-700' : 'text-gray-500'}`}>{method}</span>
                             </button>
                         ))}
                     </div>
+
+                    {/* UPI QR Code */}
+                    {paymentMethod === 'UPI' && (
+                        <div className="mt-4 p-4 rounded-xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-lg">📱</span>
+                                <div>
+                                    <p className="text-sm font-bold text-violet-900">Scan to Pay via UPI</p>
+                                    <p className="text-xs text-violet-500">Customer can scan this QR code to pay</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-center bg-white rounded-xl p-4 shadow-sm">
+                                <QRCodeSVG
+                                    value={`upi://pay?pa=${encodeURIComponent(settings.upiId || 'pharmacare@upi')}&pn=${encodeURIComponent(settings.pharmacyName || 'PharmaCare')}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Payment for medicines - ${settings.invoicePrefix}`)}`}
+                                    size={180}
+                                    level="H"
+                                    includeMargin={true}
+                                    bgColor="#ffffff"
+                                    fgColor="#1e1b4b"
+                                />
+                                <div className="mt-3 text-center">
+                                    <p className="text-lg font-bold text-gray-900">₹{grandTotal.toFixed(2)}</p>
+                                    <p className="text-xs text-gray-400 mt-1 font-mono">{settings.upiId || 'pharmacare@upi'}</p>
+                                </div>
+                                <div className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">Waiting for payment</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Order Summary */}
@@ -602,8 +729,8 @@ const POS = () => {
                                         <td className="py-2 font-medium text-gray-900">{item.name}</td>
                                         <td className="py-2 text-center">
                                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${item.saleType === 'strip' ? 'bg-blue-100 text-blue-700' :
-                                                    item.saleType === 'loose' ? 'bg-violet-100 text-violet-700' :
-                                                        'bg-gray-100 text-gray-600'
+                                                item.saleType === 'loose' ? 'bg-violet-100 text-violet-700' :
+                                                    'bg-gray-100 text-gray-600'
                                                 }`}>
                                                 {item.saleType === 'strip' ? 'STRIP' : item.saleType === 'loose' ? 'LOOSE' : 'UNIT'}
                                             </span>

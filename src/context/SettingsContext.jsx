@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { mockDoctors } from '../data/mockData';
 
 const SettingsContext = createContext(null);
 
@@ -38,14 +39,43 @@ export const SettingsProvider = ({ children }) => {
         maxDiscountLimit: 20,
         roundOffTotal: true,
         enablePaymentModes: { cash: true, card: true, upi: true, credit: true },
+        upiId: 'pharmacare@upi',
     });
 
     // Track current invoice counter
     const [invoiceCounter, setInvoiceCounter] = useState(settings.startingInvoiceNo);
 
+    // Doctor Management
+    const [doctors, setDoctors] = useState([...mockDoctors]);
+
+    const addDoctor = (doctor) => {
+        const newId = `D${String(doctors.length + 1).padStart(3, '0')}`;
+        const newDoctor = { id: newId, ...doctor };
+        setDoctors((prev) => [...prev, newDoctor]);
+        return newDoctor;
+    };
+
+    const updateDoctor = (id, updatedData) => {
+        setDoctors((prev) => prev.map((d) => (d.id === id ? { ...d, ...updatedData } : d)));
+    };
+
+    const deleteDoctor = (id) => {
+        setDoctors((prev) => prev.filter((d) => d.id !== id));
+    };
+
     const updateSettings = (newSettings) => {
         setSettings((prev) => ({ ...prev, ...newSettings }));
     };
+
+    // Sync theme to HTML element
+    useEffect(() => {
+        const root = document.documentElement;
+        if (settings.theme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+    }, [settings.theme]);
 
     const generateInvoiceId = () => {
         const id = `${settings.invoicePrefix}${invoiceCounter}`;
@@ -54,7 +84,7 @@ export const SettingsProvider = ({ children }) => {
     };
 
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings, generateInvoiceId }}>
+        <SettingsContext.Provider value={{ settings, updateSettings, generateInvoiceId, doctors, addDoctor, updateDoctor, deleteDoctor }}>
             {children}
         </SettingsContext.Provider>
     );
