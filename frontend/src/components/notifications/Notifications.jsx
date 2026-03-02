@@ -1,55 +1,153 @@
-import React, { useState } from 'react';
-import { mockNotifications } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { notificationsAPI } from '../../services/api';
 import ConfirmDialog from '../common/ConfirmDialog';
 import { useToast } from '../../context/ToastContext';
 
 const Notifications = () => {
-    const [notifications, setNotifications] = useState([...mockNotifications]);
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [showClearAll, setShowClearAll] = useState(false);
     const toast = useToast();
 
+    // Fetch notifications on mount
+    useEffect(() => {
+        fetchNotifications();
+    }, []);
+
+    const fetchNotifications = async () => {
+        try {
+            setLoading(true);
+            const response = await notificationsAPI.getAll();
+            setNotifications(response.data.notifications || []);
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+            toast.error('Failed to load notifications');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const filtered = filter === 'all' ? notifications
-        : filter === 'unread' ? notifications.filter((n) => !n.read)
+        : filter === 'unread' ? notifications.filter((n) => !n.is_read)
             : notifications.filter((n) => n.type === filter);
 
-    const markAsRead = (id) => setNotifications(notifications.map((n) => n.id === id ? { ...n, read: true } : n));
-    const markAllRead = () => { setNotifications(notifications.map((n) => ({ ...n, read: true }))); toast.success('All notifications marked as read'); };
-    const unreadCount = notifications.filter((n) => !n.read).length;
-    const readCount = notifications.filter((n) => n.read).length;
-
-    const handleDelete = (id) => {
-        setNotifications(notifications.filter((n) => n.id !== id));
-        setDeleteTarget(null);
-        toast.success('Notification deleted');
+    const markAsRead = async (id) => {
+        try {
+            await notificationsAPI.markAsRead(id);
+            setNotifications(notifications.map((n) => n.id === id ? { ...n, is_read: true } : n));
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
     };
 
-    const handleClearAll = () => {
-        setNotifications([]);
-        setShowClearAll(false);
-        toast.success('All notifications cleared');
+    const markAllRead = async () => {
+        try {
+            await notificationsAPI.markAllAsRead();
+            setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
+            toast.success('All notifications marked as read');
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+            toast.error('Failed to mark all as read');
+        }
     };
 
-    const handleClearRead = () => {
-        setNotifications(notifications.filter((n) => !n.read));
-        toast.success(`${readCount} read notifications cleared`);
+    const unreadCount = notifications.filter((n) => !n.is_read).length;
+    const readCount = notifications.filter((n) => n.is_read).length;
+
+    const handleDelete = async (id) => {
+        try {
+            await notificationsAPI.delete(id);
+            setNotifications(notifications.filter((n) => n.id !== id));
+            setDeleteTarget(null);
+            toast.success('Notification deleted');
+        } catch (error) {
+            console.error('Error deleting notification:', error);
+            toast.error('Failed to delete notification');
+        }
+    };
+
+    const handleClearAll = async () => {
+        try {
+            // Delete all notifications one by one
+            await Promise.all(notifications.map(n => notificationsAPI.delete(n.id)));
+            setNotifications([]);
+            setShowClearAll(false);
+            toast.success('All notifications cleared');
+        } catch (error) {
+            console.error('Error clearing all:', error);
+            toast.error('Failed to clear all notifications');
+        }
+    };
+
+    const handleClearRead = async () => {
+        try {
+            const readNotifications = notifications.filter((n) => n.is_read);
+            await Promise.all(readNotifications.map(n => notificationsAPI.delete(n.id)));
+            setNotifications(notifications.filter((n) => !n.is_read));
+            toast.success(`${readCount} read notifications cleared`);
+        } catch (error) {
+            console.error('Error clearing read:', error);
+            toast.error('Failed to clear read notifications');
+        }
+    };
+
+    const handleGenerateNotifications = async () => {
+        try {
+            await notificationsAPI.generate();
+            await fetchNotifications();
+            toast.success('Notifications generated successfully');
+        } catch (error) {
+            console.error('Error generating notifications:', error);
+            toast.error('Failed to generate notifications');
+        }
     };
 
     const typeStyles = {
         low_stock: { icon: '📦', bg: 'bg-amber-50 border-amber-200' },
         out_of_stock: { icon: '🚫', bg: 'bg-red-50 border-red-200' },
         expiry: { icon: '⏰', bg: 'bg-blue-50 border-blue-200' },
+        system: { icon: '⚙️', bg: 'bg-gray-50 border-gray-200' },
+    };
+
+    // Format date
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} min ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        return date.toLocaleDateString('en-IN');
     };
 
     return (
         <div className="space-y-6">
+            {loading ? (
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="mt-4 text-gray-500">Loading notifications...</p>
+                    </div>
+                </div>
+            ) : (
+                <>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
                     <p className="text-sm text-gray-500 mt-1">{unreadCount} unread alerts · {notifications.length} total</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={handleGenerateNotifications} className="inline-flex items-center gap-1.5 text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Generate
+                    </button>
                     {unreadCount > 0 && (
                         <button onClick={markAllRead} className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
@@ -83,15 +181,15 @@ const Notifications = () => {
                 {filtered.map((n) => {
                     const style = typeStyles[n.type] || typeStyles.low_stock;
                     return (
-                        <div key={n.id} onClick={() => markAsRead(n.id)} className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-all hover:shadow-sm group ${!n.read ? style.bg : 'bg-white border-gray-100'}`}>
+                        <div key={n.id} onClick={() => markAsRead(n.id)} className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-all hover:shadow-sm group ${!n.is_read ? style.bg : 'bg-white border-gray-100'}`}>
                             <span className="text-2xl mt-0.5">{style.icon}</span>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                    <h3 className={`text-sm font-bold ${!n.read ? 'text-gray-900' : 'text-gray-600'}`}>{n.title}</h3>
-                                    {!n.read && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>}
+                                    <h3 className={`text-sm font-bold ${!n.is_read ? 'text-gray-900' : 'text-gray-600'}`}>{n.title}</h3>
+                                    {!n.is_read && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>}
                                 </div>
                                 <p className="text-sm text-gray-500 mt-0.5">{n.message}</p>
-                                <p className="text-xs text-gray-400 mt-1.5">{n.time}</p>
+                                <p className="text-xs text-gray-400 mt-1.5">{formatDate(n.created_at)}</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${n.severity === 'critical' ? 'bg-red-100 text-red-700' : n.severity === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{n.severity}</span>
@@ -134,6 +232,8 @@ const Notifications = () => {
                 title="Clear All Notifications"
                 message={`Are you sure you want to delete all ${notifications.length} notifications? This cannot be undone.`}
             />
+                </>
+            )}
         </div>
     );
 };
