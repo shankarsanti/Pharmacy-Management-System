@@ -65,6 +65,18 @@ router.get('/stats', authenticate, async (req, res) => {
             LIMIT 5
         `, [firstDayOfMonth]);
 
+        // Payment methods breakdown (today)
+        const [paymentMethods] = await pool.query(`
+            SELECT 
+                payment_method,
+                COUNT(*) as count,
+                COALESCE(SUM(total), 0) as amount
+            FROM sales 
+            WHERE sale_date = ?
+            GROUP BY payment_method
+            ORDER BY amount DESC
+        `, [today]);
+
         res.json({
             success: true,
             stats: {
@@ -87,7 +99,12 @@ router.get('/stats', authenticate, async (req, res) => {
                 suppliers: suppliers[0].count,
                 categories: categories[0].count,
                 recentSales,
-                topMedicines
+                topMedicines,
+                paymentMethods: paymentMethods.map(pm => ({
+                    method: pm.payment_method,
+                    count: pm.count,
+                    amount: parseFloat(pm.amount)
+                }))
             }
         });
     } catch (error) {

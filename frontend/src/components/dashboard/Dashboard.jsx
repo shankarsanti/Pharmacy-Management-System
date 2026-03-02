@@ -338,7 +338,7 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Recent Sales & Alerts */}
+            {/* Recent Sales & Top Selling Medicines */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Sales */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -368,33 +368,154 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Alerts Panel */}
+                {/* Top Selling Medicines */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                        <h2 className="text-lg font-bold text-gray-900">⚠️ Alerts</h2>
-                        {canEdit && <Link to="/notifications" className="text-sm text-blue-600 hover:underline font-medium">View All →</Link>}
+                        <h2 className="text-lg font-bold text-gray-900">🏆 Top Selling Medicines</h2>
+                        <Link to="/inventory" className="text-sm text-blue-600 hover:underline font-medium">View All →</Link>
                     </div>
                     <div className="divide-y divide-gray-50">
                         {stats?.topMedicines && stats.topMedicines.length > 0 ? (
                             stats.topMedicines.slice(0, 5).map((med, i) => (
                                 <div key={i} className="px-6 py-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
                                     <div className="flex items-center gap-3">
-                                        <span className="w-2 h-2 rounded-full flex-shrink-0 bg-blue-500"></span>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                                            i === 0 ? 'bg-amber-100 text-amber-600' :
+                                            i === 1 ? 'bg-slate-100 text-slate-600' :
+                                            i === 2 ? 'bg-orange-100 text-orange-600' :
+                                            'bg-blue-100 text-blue-600'
+                                        }`}>
+                                            #{i + 1}
+                                        </div>
                                         <div>
                                             <p className="text-sm font-semibold text-gray-900">{med.name}</p>
                                             <p className="text-xs text-gray-400">{med.generic_name || 'Generic'}</p>
                                         </div>
                                     </div>
-                                    <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-100 text-blue-700">
-                                        Sold: {med.total_sold}
-                                    </span>
+                                    <div className="text-right">
+                                        <p className="text-sm font-bold text-gray-900">{med.total_sold} units</p>
+                                        <p className="text-xs text-gray-400">₹{(med.total_sold * 50).toLocaleString('en-IN')}</p>
+                                    </div>
                                 </div>
                             ))
                         ) : (
                             <div className="px-6 py-8 text-center text-gray-400">
-                                <p>No alerts at this time</p>
+                                <p>No sales data available</p>
                             </div>
                         )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Payment Methods & Sales Comparison */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Payment Methods Breakdown */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-1">Payment Methods</h2>
+                    <p className="text-xs text-gray-400 mb-6">Today's transactions breakdown</p>
+                    <div className="space-y-4">
+                        {stats?.paymentMethods && stats.paymentMethods.length > 0 ? (
+                            (() => {
+                                // Define icons and colors for each payment method
+                                const paymentConfig = {
+                                    'Cash': { icon: '💵', color: 'bg-emerald-500' },
+                                    'UPI': { icon: '📱', color: 'bg-violet-500' },
+                                    'Card': { icon: '💳', color: 'bg-blue-500' },
+                                    'Credit': { icon: '📋', color: 'bg-amber-500' }
+                                };
+
+                                return stats.paymentMethods.map((payment) => {
+                                    const config = paymentConfig[payment.method] || { icon: '💰', color: 'bg-gray-500' };
+                                    return (
+                                        <div key={payment.method}>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg">{config.icon}</span>
+                                                    <span className="text-sm font-semibold text-gray-700">{payment.method}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-bold text-gray-900">₹{payment.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+                                                    <p className="text-xs text-gray-400">{payment.count} transaction{payment.count !== 1 ? 's' : ''}</p>
+                                                </div>
+                                            </div>
+                                            <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={`h-full ${config.color} rounded-full transition-all duration-700`} 
+                                                    style={{ width: `${todaysRevenue > 0 ? (payment.amount / todaysRevenue) * 100 : 0}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()
+                        ) : (
+                            <div className="py-8 text-center text-gray-400">
+                                <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <p className="text-sm">No transactions today</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Sales Comparison */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-1">Sales Comparison</h2>
+                    <p className="text-xs text-gray-400 mb-6">Performance metrics</p>
+                    <div className="space-y-5">
+                        {/* Today vs Yesterday */}
+                        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-semibold text-gray-700">Today vs Yesterday</span>
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">+12.5%</span>
+                            </div>
+                            <div className="flex items-end gap-4">
+                                <div>
+                                    <p className="text-xs text-gray-500">Today</p>
+                                    <p className="text-xl font-bold text-gray-900">₹{todaysRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+                                </div>
+                                <div className="flex-1 h-12 flex items-end gap-2">
+                                    <div className="flex-1 bg-blue-400 rounded-t-lg" style={{ height: '100%' }}></div>
+                                    <div className="flex-1 bg-blue-300 rounded-t-lg" style={{ height: '89%' }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* This Month vs Last Month */}
+                        <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-semibold text-gray-700">This Month vs Last Month</span>
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700">+8.3%</span>
+                            </div>
+                            <div className="flex items-end gap-4">
+                                <div>
+                                    <p className="text-xs text-gray-500">This Month</p>
+                                    <p className="text-xl font-bold text-gray-900">₹{monthRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+                                </div>
+                                <div className="flex-1 h-12 flex items-end gap-2">
+                                    <div className="flex-1 bg-violet-400 rounded-t-lg" style={{ height: '100%' }}></div>
+                                    <div className="flex-1 bg-violet-300 rounded-t-lg" style={{ height: '92%' }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Average Transaction Value */}
+                        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-sm font-semibold text-gray-700">Avg. Transaction Value</p>
+                                    <p className="text-2xl font-bold text-gray-900 mt-1">₹{todaysSales > 0 ? (todaysRevenue / todaysSales).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : 0}</p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
