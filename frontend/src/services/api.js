@@ -124,13 +124,4 @@ export const settingsAPI = {
     getByKey: (key) => api.get(`/settings/${key}`),
 };
 
-// Notifications API
-export const notificationsAPI = {
-    getAll: () => api.get('/notifications'),
-    markAsRead: (id) => api.put(`/notifications/${id}/read`),
-    markAllAsRead: () => api.put('/notifications/read-all'),
-    delete: (id) => api.delete(`/notifications/${id}`),
-    generate: () => api.post('/notifications/generate'),
-};
-
 export default api;
