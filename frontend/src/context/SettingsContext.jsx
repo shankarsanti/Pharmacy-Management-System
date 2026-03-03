@@ -52,13 +52,21 @@ export const SettingsProvider = ({ children }) => {
 
     // Fetch settings from database on mount
     useEffect(() => {
-        fetchSettings();
-        fetchDoctors();
+        const abortController = new AbortController();
+        
+        fetchSettings(abortController.signal);
+        fetchDoctors(abortController.signal);
+        
+        return () => {
+            abortController.abort();
+        };
     }, []);
 
-    const fetchSettings = async () => {
+    const fetchSettings = async (signal) => {
         try {
             const response = await settingsAPI.getAll();
+            if (signal?.aborted) return;
+            
             if (response.data.success && response.data.settings) {
                 setSettings(prev => ({ ...prev, ...response.data.settings }));
                 if (response.data.settings.startingInvoiceNo) {
@@ -66,20 +74,26 @@ export const SettingsProvider = ({ children }) => {
                 }
             }
         } catch (error) {
+            if (error.name === 'CanceledError' || signal?.aborted) return;
             console.error('Error fetching settings:', error);
             // Use default settings if fetch fails
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) {
+                setLoading(false);
+            }
         }
     };
 
-    const fetchDoctors = async () => {
+    const fetchDoctors = async (signal) => {
         try {
             const response = await doctorsAPI.getAll();
+            if (signal?.aborted) return;
+            
             if (response.data.success && response.data.doctors) {
                 setDoctors(response.data.doctors);
             }
         } catch (error) {
+            if (error.name === 'CanceledError' || signal?.aborted) return;
             console.error('Error fetching doctors:', error);
         }
     };

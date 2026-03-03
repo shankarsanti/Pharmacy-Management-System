@@ -9,20 +9,31 @@ const AuditLogs = () => {
     const toast = useToast();
 
     useEffect(() => {
-        fetchLogs();
+        const abortController = new AbortController();
+        fetchLogs(abortController.signal);
+        
+        return () => {
+            abortController.abort();
+        };
     }, [filter]);
 
-    const fetchLogs = async () => {
+    const fetchLogs = async (signal) => {
         try {
             setLoading(true);
             const params = filter !== 'all' ? { type: filter } : {};
             const response = await auditLogsAPI.getAll(params);
+            
+            if (signal?.aborted) return;
+            
             setLogs(response.data.logs || []);
         } catch (error) {
+            if (error.name === 'CanceledError' || signal?.aborted) return;
             console.error('Failed to fetch audit logs:', error);
             toast.error('Failed to load audit logs');
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) {
+                setLoading(false);
+            }
         }
     };
 
