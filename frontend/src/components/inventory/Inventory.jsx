@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { medicinesAPI, categoriesAPI, suppliersAPI } from '../../services/api';
+import { medicinesAPI, categoriesAPI, suppliersAPI, customerRequestsAPI } from '../../services/api';
 import { getCategoryColor, getDaysUntilExpiry, getStockDisplay } from '../../data/mockData';
 import Modal from '../common/Modal';
 import ConfirmDialog from '../common/ConfirmDialog';
@@ -11,6 +11,7 @@ const Inventory = () => {
     const [medicines, setMedicines] = useState([]);
     const [categories, setCategories] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
+    const [customerRequests, setCustomerRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
@@ -19,6 +20,10 @@ const Inventory = () => {
     const [showForm, setShowForm] = useState(false);
     const [editingMed, setEditingMed] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [showRequestForm, setShowRequestForm] = useState(false);
+    const [editingRequest, setEditingRequest] = useState(null);
+    const [deleteRequestTarget, setDeleteRequestTarget] = useState(null);
+    const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' or 'requests'
     const itemsPerPage = 8;
     const toast = useToast();
     const { user } = useAuth();
@@ -32,16 +37,18 @@ const Inventory = () => {
     const fetchAllData = async () => {
         try {
             setLoading(true);
-            const [medsRes, catsRes, suppsRes] = await Promise.all([
+            const [medsRes, catsRes, suppsRes, reqsRes] = await Promise.all([
                 medicinesAPI.getAll(),
                 categoriesAPI.getAll(),
-                suppliersAPI.getAll()
+                suppliersAPI.getAll(),
+                customerRequestsAPI.getAll()
             ]);
             console.log('Medicines from API:', medsRes.data.medicines);
             console.log('First medicine category_name:', medsRes.data.medicines[0]?.category_name);
             setMedicines(medsRes.data.medicines || []);
             setCategories(catsRes.data.categories || []);
             setSuppliers(suppsRes.data.suppliers || []);
+            setCustomerRequests(reqsRes.data.requests || []);
         } catch (error) {
             console.error('Failed to fetch data:', error);
             toast.error('Failed to load inventory data');
@@ -324,6 +331,60 @@ const Inventory = () => {
 
     const isTabletType = formData.medicineType === 'Tablet';
 
+    // Customer Request Form
+    const emptyRequestForm = {
+        medicine_name: '', generic_name: '', customer_name: '', customer_phone: '', notes: '', status: 'Pending'
+    };
+    const [requestFormData, setRequestFormData] = useState(emptyRequestForm);
+
+    const openAddRequest = () => { setRequestFormData(emptyRequestForm); setEditingRequest(null); setShowRequestForm(true); };
+    const openEditRequest = (req) => {
+        setRequestFormData({
+            medicine_name: req.medicine_name,
+            generic_name: req.generic_name || '',
+            customer_name: req.customer_name || '',
+            customer_phone: req.customer_phone || '',
+            notes: req.notes || '',
+            status: req.status || 'Pending'
+        });
+        setEditingRequest(req);
+        setShowRequestForm(true);
+    };
+
+    const handleSaveRequest = async () => {
+        if (!requestFormData.medicine_name) {
+            toast.warning('Medicine name is required');
+            return;
+        }
+
+        try {
+            if (editingRequest) {
+                await customerRequestsAPI.update(editingRequest.id, requestFormData);
+                toast.success('Request updated successfully!');
+            } else {
+                await customerRequestsAPI.create(requestFormData);
+                toast.success('Customer request added successfully!');
+            }
+            await fetchAllData();
+            setShowRequestForm(false);
+        } catch (error) {
+            console.error('Save request error:', error);
+            toast.error(error.response?.data?.message || 'Failed to save request');
+        }
+    };
+
+    const handleDeleteRequest = async () => {
+        try {
+            await customerRequestsAPI.delete(deleteRequestTarget.id);
+            toast.success('Request deleted!');
+            await fetchAllData();
+            setDeleteRequestTarget(null);
+        } catch (error) {
+            console.error('Delete request error:', error);
+            toast.error('Failed to delete request');
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96">
@@ -343,14 +404,46 @@ const Inventory = () => {
                     <p className="text-sm text-gray-500 mt-1">Manage your complete medicine stock. <span className="text-blue-500 font-medium">Stock is stored in tablets.</span></p>
                 </div>
                 {canEdit && (
-                    <button onClick={openAdd} className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-blue-500/20 transition-all active:scale-95">
+                    <button onClick={activeTab === 'inventory' ? openAdd : openAddRequest} className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-blue-500/20 transition-all active:scale-95">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                        Add Medicine
+                        {activeTab === 'inventory' ? 'Add Medicine' : 'Add Request'}
                     </button>
                 )}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-gray-200">
+                <button
+                    onClick={() => { setActiveTab('inventory'); setCurrentPage(1); }}
+                    className={`px-6 py-3 font-medium text-sm transition-all relative ${
+                        activeTab === 'inventory'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <span className="flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                        Inventory ({medicines.length})
+                    </span>
+                </button>
+                <button
+                    onClick={() => { setActiveTab('requests'); setCurrentPage(1); }}
+                    className={`px-6 py-3 font-medium text-sm transition-all relative ${
+                        activeTab === 'requests'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <span className="flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                        Customer Requests ({customerRequests.length})
+                    </span>
+                </button>
+            </div>
+
+            {activeTab === 'inventory' ? (
+                // Existing Inventory Table
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {/* Filters */}
                 <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-wrap gap-3 items-center">
                     <div className="relative flex-1 min-w-[200px] max-w-md">
@@ -455,6 +548,81 @@ const Inventory = () => {
 
                 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
             </div>
+            ) : (
+                // Customer Requests Table
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                        <p className="text-sm text-gray-600">Track medicines that customers requested but are not currently in stock</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-gray-50/80 border-b border-gray-100">
+                                    {['Medicine Name', 'Generic Name', 'Customer', 'Phone', 'Notes', 'Status', 'Date', 'Actions'].map((h) => (
+                                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {customerRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((req) => (
+                                    <tr key={req.id} className="hover:bg-blue-50/30 transition-colors group">
+                                        <td className="px-5 py-3.5">
+                                            <p className="text-sm font-semibold text-gray-900">{req.medicine_name}</p>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <p className="text-sm text-gray-600">{req.generic_name || '—'}</p>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <p className="text-sm text-gray-700">{req.customer_name || '—'}</p>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <p className="text-sm text-gray-600">{req.customer_phone || '—'}</p>
+                                        </td>
+                                        <td className="px-5 py-3.5 max-w-xs">
+                                            <p className="text-sm text-gray-500 truncate">{req.notes || '—'}</p>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                                                req.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                                req.status === 'Ordered' ? 'bg-blue-100 text-blue-700' :
+                                                req.status === 'Fulfilled' ? 'bg-emerald-100 text-emerald-700' :
+                                                'bg-gray-100 text-gray-600'
+                                            }`}>
+                                                {req.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <p className="text-sm text-gray-500">{new Date(req.requested_date).toLocaleDateString()}</p>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {canEdit && (
+                                                    <>
+                                                        <button onClick={() => openEditRequest(req)} className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors" title="Edit">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        </button>
+                                                        <button onClick={() => setDeleteRequestTarget(req)} className="p-1.5 rounded-lg hover:bg-red-100 text-red-600 transition-colors" title="Delete">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {customerRequests.length === 0 && (
+                                    <tr><td colSpan="8" className="px-6 py-16 text-center text-gray-400">
+                                        <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                        <p className="font-medium">No customer requests yet</p>
+                                        <p className="text-sm mt-1">Add requests for medicines customers are looking for</p>
+                                    </td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <Pagination currentPage={currentPage} totalPages={Math.ceil(customerRequests.length / itemsPerPage)} onPageChange={setCurrentPage} />
+                </div>
+            )}
 
             {/* Add / Edit Modal */}
             <Modal isOpen={showForm} onClose={() => setShowForm(false)} title={editingMed ? 'Edit Medicine' : 'Add New Medicine'} size="lg">
@@ -601,6 +769,94 @@ const Inventory = () => {
 
             {/* Delete Confirmation */}
             <ConfirmDialog isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Medicine" message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`} />
+
+            {/* Customer Request Form Modal */}
+            <Modal isOpen={showRequestForm} onClose={() => setShowRequestForm(false)} title={editingRequest ? 'Edit Customer Request' : 'Add Customer Request'} size="md">
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Medicine Name *</label>
+                        <input
+                            type="text"
+                            value={requestFormData.medicine_name}
+                            onChange={(e) => setRequestFormData({ ...requestFormData, medicine_name: e.target.value })}
+                            placeholder="e.g., Paracetamol 500mg"
+                            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Generic Name</label>
+                        <input
+                            type="text"
+                            value={requestFormData.generic_name}
+                            onChange={(e) => setRequestFormData({ ...requestFormData, generic_name: e.target.value })}
+                            placeholder="e.g., Acetaminophen"
+                            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Customer Name</label>
+                            <input
+                                type="text"
+                                value={requestFormData.customer_name}
+                                onChange={(e) => setRequestFormData({ ...requestFormData, customer_name: e.target.value })}
+                                placeholder="Customer name"
+                                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
+                            <input
+                                type="tel"
+                                value={requestFormData.customer_phone}
+                                onChange={(e) => setRequestFormData({ ...requestFormData, customer_phone: e.target.value })}
+                                placeholder="Phone number"
+                                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            />
+                        </div>
+                    </div>
+                    {editingRequest && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+                            <select
+                                value={requestFormData.status}
+                                onChange={(e) => setRequestFormData({ ...requestFormData, status: e.target.value })}
+                                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            >
+                                <option value="Pending">Pending</option>
+                                <option value="Ordered">Ordered</option>
+                                <option value="Fulfilled">Fulfilled</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes</label>
+                        <textarea
+                            value={requestFormData.notes}
+                            onChange={(e) => setRequestFormData({ ...requestFormData, notes: e.target.value })}
+                            placeholder="Additional notes or details..."
+                            rows="3"
+                            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                    <button onClick={() => setShowRequestForm(false)} className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors">Cancel</button>
+                    <button onClick={handleSaveRequest} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-colors">
+                        {editingRequest ? 'Update Request' : 'Add Request'}
+                    </button>
+                </div>
+            </Modal>
+
+            {/* Delete Request Confirmation */}
+            <ConfirmDialog
+                isOpen={!!deleteRequestTarget}
+                onClose={() => setDeleteRequestTarget(null)}
+                onConfirm={handleDeleteRequest}
+                title="Delete Customer Request"
+                message={`Are you sure you want to delete the request for "${deleteRequestTarget?.medicine_name}"?`}
+            />
         </div>
     );
 };

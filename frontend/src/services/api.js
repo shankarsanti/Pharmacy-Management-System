@@ -124,4 +124,20 @@ export const settingsAPI = {
     getByKey: (key) => api.get(`/settings/${key}`),
 };
 
+// Customer Requests API
+export const customerRequestsAPI = {
+    getAll: () => api.get('/customer-requests'),
+    create: (requestData) => api.post('/customer-requests', requestData),
+    update: (id, requestData) => api.put(`/customer-requests/${id}`, requestData),
+    delete: (id) => api.delete(`/customer-requests/${id}`),
+};
+
+// Doctors API
+export const doctorsAPI = {
+    getAll: () => api.get('/doctors'),
+    create: (doctorData) => api.post('/doctors', doctorData),
+    update: (id, doctorData) => api.put(`/doctors/${id}`, doctorData),
+    delete: (id) => api.delete(`/doctors/${id}`),
+};
+
 export default api;

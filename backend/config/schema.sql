@@ -175,6 +175,36 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_created (created_at)
 );
 
+-- Customer Requests Table (for medicines not in stock)
+CREATE TABLE IF NOT EXISTS customer_requests (
+    id VARCHAR(50) PRIMARY KEY,
+    medicine_name VARCHAR(200) NOT NULL,
+    generic_name VARCHAR(200),
+    customer_name VARCHAR(200),
+    customer_phone VARCHAR(20),
+    notes TEXT,
+    status ENUM('Pending', 'Ordered', 'Fulfilled', 'Cancelled') DEFAULT 'Pending',
+    requested_by VARCHAR(50),
+    requested_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_status (status),
+    INDEX idx_date (requested_date),
+    INDEX idx_medicine (medicine_name)
+);
+
+-- Doctors Table
+CREATE TABLE IF NOT EXISTS doctors (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    specialization VARCHAR(200),
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_name (name)
+);
+
 -- Settings Table
 CREATE TABLE IF NOT EXISTS settings (
     id INT AUTO_INCREMENT PRIMARY KEY,

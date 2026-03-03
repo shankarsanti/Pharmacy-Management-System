@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 import { authAPI } from '../services/api';
+import { auditLog } from '../utils/auditLogger';
 
 const AuthContext = createContext(null);
 
@@ -24,6 +25,9 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('pharmacare_token', token);
             localStorage.setItem('pharmacare_user', JSON.stringify(userData));
             
+            // Log the login action
+            auditLog.login(userData.name);
+            
             return { success: true, user: userData };
         } catch (error) {
             const message = error.response?.data?.message || 'Login failed';
@@ -32,6 +36,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
+        // Log the logout action before clearing user data
+        if (user) {
+            auditLog.logout(user.name);
+        }
+        
         setUser(null);
         localStorage.removeItem('pharmacare_token');
         localStorage.removeItem('pharmacare_user');

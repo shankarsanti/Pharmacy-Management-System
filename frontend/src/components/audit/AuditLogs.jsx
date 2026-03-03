@@ -1,10 +1,32 @@
-import React, { useState } from 'react';
-import { mockAuditLogs } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { auditLogsAPI } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 
 const AuditLogs = () => {
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
+    const toast = useToast();
 
-    const filtered = filter === 'all' ? mockAuditLogs : mockAuditLogs.filter((l) => l.type === filter);
+    useEffect(() => {
+        fetchLogs();
+    }, [filter]);
+
+    const fetchLogs = async () => {
+        try {
+            setLoading(true);
+            const params = filter !== 'all' ? { type: filter } : {};
+            const response = await auditLogsAPI.getAll(params);
+            setLogs(response.data.logs || []);
+        } catch (error) {
+            console.error('Failed to fetch audit logs:', error);
+            toast.error('Failed to load audit logs');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filtered = logs;
 
     const typeStyles = {
         inventory: { icon: '📦', color: 'bg-blue-100 text-blue-700' },
@@ -13,6 +35,17 @@ const AuditLogs = () => {
         supplier: { icon: '🚚', color: 'bg-cyan-100 text-cyan-700' },
         system: { icon: '⚙️', color: 'bg-gray-100 text-gray-700' },
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading audit logs...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -35,18 +68,36 @@ const AuditLogs = () => {
                         </tr></thead>
                         <tbody className="divide-y divide-gray-50">
                             {filtered.map((log) => {
-                                const style = typeStyles[log.type] || typeStyles.system;
+                                const style = typeStyles[log.log_type] || typeStyles.system;
+                                const timestamp = new Date(log.created_at).toLocaleString('en-IN', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
                                 return (
                                     <tr key={log.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-5 py-3.5 text-lg">{style.icon}</td>
                                         <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${style.color}`}>{log.action}</span></td>
                                         <td className="px-5 py-3.5 text-sm text-gray-700">{log.description}</td>
-                                        <td className="px-5 py-3.5 text-sm font-medium text-gray-900">{log.user}</td>
-                                        <td className="px-5 py-3.5 text-sm text-gray-500">{log.role}</td>
-                                        <td className="px-5 py-3.5 text-sm text-gray-400 font-mono">{log.timestamp}</td>
+                                        <td className="px-5 py-3.5 text-sm font-medium text-gray-900">{log.user_name || 'System'}</td>
+                                        <td className="px-5 py-3.5 text-sm text-gray-500">{log.user_role || '—'}</td>
+                                        <td className="px-5 py-3.5 text-sm text-gray-400 font-mono">{timestamp}</td>
                                     </tr>
                                 );
                             })}
+                            {filtered.length === 0 && (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-16 text-center text-gray-400">
+                                        <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <p className="font-medium">No audit logs found</p>
+                                        <p className="text-sm mt-1">System activities will appear here</p>
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

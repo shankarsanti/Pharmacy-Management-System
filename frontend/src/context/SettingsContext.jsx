@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { settingsAPI } from '../services/api';
-import { mockDoctors } from '../data/mockData';
+import { settingsAPI, doctorsAPI } from '../services/api';
 
 const SettingsContext = createContext(null);
 
@@ -49,11 +48,12 @@ export const SettingsProvider = ({ children }) => {
     const [invoiceCounter, setInvoiceCounter] = useState(settings.startingInvoiceNo);
 
     // Doctor Management
-    const [doctors, setDoctors] = useState([...mockDoctors]);
+    const [doctors, setDoctors] = useState([]);
 
     // Fetch settings from database on mount
     useEffect(() => {
         fetchSettings();
+        fetchDoctors();
     }, []);
 
     const fetchSettings = async () => {
@@ -73,19 +73,48 @@ export const SettingsProvider = ({ children }) => {
         }
     };
 
-    const addDoctor = (doctor) => {
-        const newId = `D${String(doctors.length + 1).padStart(3, '0')}`;
-        const newDoctor = { id: newId, ...doctor };
-        setDoctors((prev) => [...prev, newDoctor]);
-        return newDoctor;
+    const fetchDoctors = async () => {
+        try {
+            const response = await doctorsAPI.getAll();
+            if (response.data.success && response.data.doctors) {
+                setDoctors(response.data.doctors);
+            }
+        } catch (error) {
+            console.error('Error fetching doctors:', error);
+        }
     };
 
-    const updateDoctor = (id, updatedData) => {
-        setDoctors((prev) => prev.map((d) => (d.id === id ? { ...d, ...updatedData } : d)));
+    const addDoctor = async (doctor) => {
+        try {
+            const response = await doctorsAPI.create(doctor);
+            if (response.data.success) {
+                await fetchDoctors(); // Refresh the list
+                return response.data.id;
+            }
+        } catch (error) {
+            console.error('Error adding doctor:', error);
+            throw error;
+        }
     };
 
-    const deleteDoctor = (id) => {
-        setDoctors((prev) => prev.filter((d) => d.id !== id));
+    const updateDoctor = async (id, updatedData) => {
+        try {
+            await doctorsAPI.update(id, updatedData);
+            await fetchDoctors(); // Refresh the list
+        } catch (error) {
+            console.error('Error updating doctor:', error);
+            throw error;
+        }
+    };
+
+    const deleteDoctor = async (id) => {
+        try {
+            await doctorsAPI.delete(id);
+            await fetchDoctors(); // Refresh the list
+        } catch (error) {
+            console.error('Error deleting doctor:', error);
+            throw error;
+        }
     };
 
     const updateSettings = async (newSettings) => {
