@@ -9,6 +9,13 @@ const AuditLogs = () => {
     const toast = useToast();
 
     useEffect(() => {
+        // Only fetch if user is authenticated
+        const token = localStorage.getItem('pharmacare_token');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
         const abortController = new AbortController();
         fetchLogs(abortController.signal);
         

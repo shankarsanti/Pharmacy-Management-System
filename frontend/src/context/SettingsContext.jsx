@@ -52,6 +52,13 @@ export const SettingsProvider = ({ children }) => {
 
     // Fetch settings from database on mount
     useEffect(() => {
+        // Only fetch if user is authenticated (token exists)
+        const token = localStorage.getItem('pharmacare_token');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
         const abortController = new AbortController();
         
         fetchSettings(abortController.signal);
