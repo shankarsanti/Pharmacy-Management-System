@@ -61,22 +61,27 @@ cd frontend
 npm install
 npm run dev
 
-# 4. Open http://localhost:5173
+# 4. Open http://localhost:5173 (or the port shown in terminal)
 ```
 
 ### Default Login
 - **Admin:** admin@pharmacare.com / admin123
 - **Pharmacist:** rahul@pharmacare.com / pharma123
 
+### Important Notes
+- Backend runs on port **5001**
+- Frontend runs on port **5173** or **5174** (Vite auto-assigns)
+- CORS is configured for both ports automatically
+- If you get CORS errors, restart the backend server
+
 ## 📚 Documentation
 
-- **[Setup Guide](SETUP_GUIDE.md)** - Complete installation instructions
-- **[Quick Start](QUICK_START.md)** - Get running in 5 minutes
-- **[Migration Guide](MIGRATION_GUIDE.md)** - Update components to use API
-- **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Backend API](backend/README.md)** - API documentation
-- **[Frontend Checklist](FRONTEND_UPDATE_CHECKLIST.md)** - Component update tracking
-- **[Project Summary](PROJECT_SUMMARY.md)** - Complete project overview
+- **[README.md](README.md)** - Main project overview (you are here)
+- **[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** - Detailed project structure
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment guide (Render, Vercel, Railway, VPS)
+- **[docs/CLEANUP_SUMMARY.md](docs/CLEANUP_SUMMARY.md)** - Project organization and maintenance
+- **[backend/README.md](backend/README.md)** - Backend API documentation
+- **[frontend/README.md](frontend/README.md)** - Frontend documentation
 
 ## 🛠️ Technology Stack
 
@@ -101,46 +106,76 @@ npm run dev
 pharmacy-management-system/
 ├── backend/                    # Node.js + Express backend
 │   ├── config/
-│   │   ├── database.js        # MySQL connection
-│   │   └── schema.sql         # Database schema
+│   │   ├── database.js        # MySQL connection pool
+│   │   └── schema.sql         # Complete database schema
 │   ├── middleware/
 │   │   ├── auth.js            # JWT authentication
-│   │   └── errorHandler.js   # Error handling
-│   ├── routes/                # API endpoints
-│   │   ├── auth.js
-│   │   ├── users.js
-│   │   ├── medicines.js
-│   │   ├── sales.js
-│   │   ├── stockEntries.js
-│   │   ├── suppliers.js
-│   │   ├── categories.js
-│   │   ├── notifications.js
-│   │   ├── auditLogs.js
-│   │   └── dashboard.js
+│   │   └── errorHandler.js   # Global error handler
+│   ├── routes/                # API endpoints (13 routes)
+│   │   ├── auth.js           # Authentication
+│   │   ├── users.js          # User management
+│   │   ├── medicines.js      # Medicine inventory
+│   │   ├── categories.js     # Categories
+│   │   ├── suppliers.js      # Suppliers
+│   │   ├── sales.js          # Sales transactions
+│   │   ├── stockEntries.js   # Stock purchases
+│   │   ├── notifications.js  # Notifications
+│   │   ├── auditLogs.js      # Activity logs
+│   │   ├── dashboard.js      # Dashboard stats
+│   │   ├── settings.js       # System settings
+│   │   ├── doctors.js        # Doctor management
+│   │   └── customerRequests.js # Customer requests
 │   ├── scripts/
-│   │   └── seedDatabase.js    # Database seeding
-│   ├── server.js              # Main server
-│   ├── package.json
-│   └── .env.example
+│   │   ├── seedDatabase.js   # Database seeding
+│   │   ├── addCustomerRequestsTable.js
+│   │   └── addDoctorsTable.js
+│   ├── .env.example          # Environment template
+│   ├── server.js             # Express server
+│   └── package.json
 │
 ├── frontend/                   # React frontend
 │   ├── src/
-│   │   ├── components/        # React components
-│   │   ├── context/           # Context providers
+│   │   ├── components/        # React components (organized by feature)
+│   │   │   ├── auth/         # Login, Protected Routes
+│   │   │   ├── common/       # Reusable components
+│   │   │   ├── dashboard/    # Dashboard
+│   │   │   ├── inventory/    # Inventory + Customer Requests
+│   │   │   ├── categories/   # Category management
+│   │   │   ├── suppliers/    # Supplier management
+│   │   │   ├── stocks/       # Stock management
+│   │   │   ├── sales/        # Sales history
+│   │   │   ├── pos/          # Point of Sale
+│   │   │   ├── expiry/       # Expiry management
+│   │   │   ├── settings/     # Settings + Doctors
+│   │   │   ├── audit/        # Audit logs
+│   │   │   └── ...
+│   │   ├── context/          # React Context
+│   │   │   ├── AuthContext.jsx
+│   │   │   ├── SettingsContext.jsx
+│   │   │   └── ToastContext.jsx
 │   │   ├── services/
-│   │   │   └── api.js         # API service layer
+│   │   │   └── api.js        # Axios API client
+│   │   ├── utils/
+│   │   │   └── auditLogger.js # Audit logging utility
 │   │   └── data/
-│   │       └── mockData.js    # Mock data (to be removed)
-│   ├── package.json
-│   └── .env
+│   │       └── mockData.js   # Helper functions
+│   ├── .env.example
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
 │
-└── docs/                       # Documentation
-    ├── SETUP_GUIDE.md
-    ├── QUICK_START.md
-    ├── MIGRATION_GUIDE.md
-    ├── TROUBLESHOOTING.md
-    └── PROJECT_SUMMARY.md
+├── docs/                       # Documentation
+│   ├── PROJECT_STRUCTURE.md   # Detailed structure
+│   ├── DEPLOYMENT.md          # Deployment guide
+│   └── CLEANUP_SUMMARY.md     # Maintenance guide
+│
+├── .gitignore                 # Git ignore rules
+├── README.md                  # This file
+├── render.yaml                # Render deployment
+└── vercel.json                # Vercel deployment
 ```
+
+For detailed structure documentation, see [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
 
 ## 🔌 API Endpoints
 
@@ -329,13 +364,43 @@ curl http://localhost:5000/api/medicines \
 
 ## 🐛 Troubleshooting
 
-Common issues and solutions are documented in [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+Common issues and solutions:
 
-Quick fixes:
-- **Database connection failed:** Check MySQL is running and credentials in `.env`
-- **Port in use:** Change PORT in `.env` or kill process on port 5000
-- **CORS errors:** Verify CORS_ORIGIN matches frontend URL
-- **401 errors:** Clear localStorage and login again
+### CORS Errors
+**Problem:** "Access to XMLHttpRequest has been blocked by CORS policy"
+
+**Solution:**
+1. Check your frontend port (shown in terminal when you run `npm run dev`)
+2. Update `backend/.env`:
+   ```env
+   CORS_ORIGIN=http://localhost:5173,http://localhost:5174
+   ```
+3. Restart backend server: `Ctrl+C` then `npm run dev`
+
+### Database Connection Failed
+**Problem:** "Database connection failed"
+
+**Solution:**
+- Check MySQL is running: `mysql -u root -p`
+- Verify credentials in `backend/.env`
+- Ensure database exists: `CREATE DATABASE pharmacy_db;`
+
+### Port Already in Use
+**Problem:** "Port 5001 is already in use"
+
+**Solution:**
+- Change PORT in `backend/.env`
+- Or kill process: `lsof -ti:5001 | xargs kill -9`
+
+### 401 Unauthorized Errors
+**Problem:** Getting 401 errors on API calls
+
+**Solution:**
+- Clear browser localStorage
+- Login again
+- Check JWT_SECRET in `backend/.env`
+
+For more detailed troubleshooting, check the [docs/](docs/) folder.
 
 ## 📦 Deployment
 
@@ -425,8 +490,10 @@ Built with modern web technologies and best practices for pharmacy management.
 
 **Status:** Backend Complete ✅ | Frontend 93% Complete (13/14 components) 🔄
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 
 **Last Updated:** March 3, 2026
 
-**Progress:** 93% Complete - All major features functional including Customer Requests, Doctor Management, and Audit Logging!
+**Progress:** 93% Complete - Production-ready with clean architecture!
+
+**Repository:** [GitHub](https://github.com/shankarsanti/Pharmacy-Management-System)
